@@ -33,8 +33,6 @@ class MyNexusApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
-      locale: const Locale('ko', 'KR'),
-      supportedLocales: const [Locale('ko', 'KR'), Locale('en', 'US')],
     );
   }
 }

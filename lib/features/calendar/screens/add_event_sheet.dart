@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../models/schedule_event.dart';
 import '../providers/calendar_provider.dart';
 import '../../../core/constants/app_constants.dart';
@@ -145,14 +144,16 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.calendar_today, color: Color(0xFF6C63FF)),
-                    title: Text(DateFormat('yyyy년 M월 d일 (E)', 'ko_KR').format(_date)),
+                    title: Text(() {
+                      const wd = ['월','화','수','목','금','토','일'];
+                      return '${_date.year}년 ${_date.month}월 ${_date.day}일 (${wd[_date.weekday - 1]})';
+                    }()),
                     onTap: () async {
                       final picked = await showDatePicker(
                         context: context,
                         initialDate: _date,
                         firstDate: DateTime(2020),
                         lastDate: DateTime(2030),
-                        locale: const Locale('ko'),
                       );
                       if (picked != null) setState(() => _date = picked);
                     },

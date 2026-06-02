@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:table_calendar/table_calendar.dart';
 import '../providers/calendar_provider.dart';
 import '../widgets/event_tile.dart';
 import '../data/korean_holidays.dart';
 import '../data/moon_void_data.dart';
 import '../../../core/utils/lunar_converter.dart';
-import '../../../core/constants/app_constants.dart';
 import 'add_event_sheet.dart';
 
 class CalendarScreen extends ConsumerWidget {
@@ -18,28 +16,22 @@ class CalendarScreen extends ConsumerWidget {
     final focusedDay = ref.watch(focusedDayProvider);
     final moonVoid = ref.watch(moonVoidEnabledProvider);
     final lunar = ref.watch(lunarEnabledProvider);
-    final eventDays = ref.watch(eventDaysProvider);
     final dayEvents = ref.watch(dayEventsProvider(selectedDay));
 
-    // 음력
     final lunarDate = LunarConverter.toSolar(selectedDay);
-    // 공휴일
     final holiday = KoreanHolidays.getHoliday(selectedDay);
-    // 문보이드
     final voidPeriod = moonVoid ? MoonVoidData.getVoidForDate(selectedDay) : null;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('📅 스케줄'),
         actions: [
-          // 음력 토글
           IconButton(
             icon: Icon(Icons.brightness_2_outlined,
                 color: lunar ? const Color(0xFF6C63FF) : Colors.grey),
             tooltip: '음력 표시',
             onPressed: () => ref.read(lunarEnabledProvider.notifier).state = !lunar,
           ),
-          // 문보이드 토글
           IconButton(
             icon: Text('🌑', style: TextStyle(
                 fontSize: 20,
@@ -52,83 +44,19 @@ class CalendarScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
-          // ── 달력 ─────────────────────────────────────────────
-          Container(
-            color: Colors.white,
-            child: TableCalendar(
-              firstDay: DateTime(2020),
-              lastDay: DateTime(2030),
-              focusedDay: focusedDay,
-              selectedDayPredicate: (d) => isSameDay(d, selectedDay),
-              calendarFormat: CalendarFormat.month,
-              startingDayOfWeek: StartingDayOfWeek.monday,
-              locale: 'ko_KR',
-              onDaySelected: (selected, focused) {
-                ref.read(selectedDayProvider.notifier).state = selected;
-                ref.read(focusedDayProvider.notifier).state = focused;
-              },
-              onPageChanged: (focused) =>
-                  ref.read(focusedDayProvider.notifier).state = focused,
-              eventLoader: (day) {
-                final key = DateTime(day.year, day.month, day.day);
-                return eventDays[key] ?? [];
-              },
-              calendarBuilders: CalendarBuilders(
-                // 요일 헤더 커스텀
-                dowBuilder: (_, day) {
-                  const weekdayNames = ['월', '화', '수', '목', '금', '토', '일'];
-                  final text = weekdayNames[day.weekday - 1];
-                  final isWeekend = day.weekday == DateTime.saturday ||
-                      day.weekday == DateTime.sunday;
-                  return Center(
-                    child: Text(text,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isWeekend ? Colors.red : Colors.grey[600],
-                          fontWeight: FontWeight.w600,
-                        )),
-                  );
-                },
-                // 날짜 셀 커스텀 (공휴일, 문보이드)
-                defaultBuilder: (_, day, __) => _DayCell(
-                  day: day,
-                  isSelected: isSameDay(day, selectedDay),
-                  moonVoid: moonVoid,
-                  lunar: lunar,
-                ),
-                selectedBuilder: (_, day, __) => _DayCell(
-                  day: day,
-                  isSelected: true,
-                  moonVoid: moonVoid,
-                  lunar: lunar,
-                ),
-                todayBuilder: (_, day, __) => _DayCell(
-                  day: day,
-                  isToday: true,
-                  isSelected: isSameDay(day, selectedDay),
-                  moonVoid: moonVoid,
-                  lunar: lunar,
-                ),
-                outsideBuilder: (_, day, __) => _DayCell(
-                  day: day,
-                  isOutside: true,
-                  moonVoid: moonVoid,
-                  lunar: lunar,
-                ),
-              ),
-              calendarStyle: CalendarStyle(
-                markerDecoration: const BoxDecoration(
-                  color: Color(0xFF6C63FF),
-                  shape: BoxShape.circle,
-                ),
-                markersMaxCount: 3,
-              ),
-              headerStyle: const HeaderStyle(
-                formatButtonVisible: false,
-                titleCentered: true,
-                titleTextStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-              ),
-            ),
+          // ── 달력 헤더 ─────────────────────────────────────────
+          _CalendarWidget(
+            focusedDay: focusedDay,
+            selectedDay: selectedDay,
+            moonVoid: moonVoid,
+            lunar: lunar,
+            onDaySelected: (day) {
+              ref.read(selectedDayProvider.notifier).state = day;
+              ref.read(focusedDayProvider.notifier).state = day;
+            },
+            onMonthChanged: (month) {
+              ref.read(focusedDayProvider.notifier).state = month;
+            },
           ),
 
           // ── 선택일 정보 바 ───────────────────────────────────
@@ -137,15 +65,11 @@ class CalendarScreen extends ConsumerWidget {
             color: const Color(0xFFF8F8FF),
             child: Row(
               children: [
-                // 선택 날짜
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      () {
-                        const wd = ['월', '화', '수', '목', '금', '토', '일'];
-                        return '${selectedDay.month}월 ${selectedDay.day}일 (${wd[selectedDay.weekday - 1]})';
-                      }(),
+                      _formatDate(selectedDay),
                       style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
                     ),
                     if (lunar)
@@ -154,10 +78,8 @@ class CalendarScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(width: 10),
-                // 공휴일
                 if (holiday != null)
-                  _InfoChip(label: holiday, color: Colors.red[50]!, textColor: Colors.red),
-                // 문보이드
+                  _InfoChip(label: holiday, color: Colors.red.shade50, textColor: Colors.red),
                 if (voidPeriod != null) ...[
                   const SizedBox(width: 6),
                   _InfoChip(
@@ -172,7 +94,6 @@ class CalendarScreen extends ConsumerWidget {
             ),
           ),
 
-          // 문보이드 상세
           if (voidPeriod != null)
             Container(
               width: double.infinity,
@@ -191,7 +112,7 @@ class CalendarScreen extends ConsumerWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('📅', style: const TextStyle(fontSize: 40)),
+                        const Text('📅', style: TextStyle(fontSize: 40)),
                         const SizedBox(height: 10),
                         Text('일정이 없어요', style: TextStyle(color: Colors.grey[500])),
                       ],
@@ -231,6 +152,183 @@ class CalendarScreen extends ConsumerWidget {
       ),
     );
   }
+
+  String _formatDate(DateTime d) {
+    const wd = ['월', '화', '수', '목', '금', '토', '일'];
+    return '${d.month}월 ${d.day}일 (${wd[d.weekday - 1]})';
+  }
+}
+
+// ── 커스텀 달력 위젯 (table_calendar 없이) ───────────────────
+class _CalendarWidget extends StatelessWidget {
+  final DateTime focusedDay;
+  final DateTime selectedDay;
+  final bool moonVoid;
+  final bool lunar;
+  final ValueChanged<DateTime> onDaySelected;
+  final ValueChanged<DateTime> onMonthChanged;
+
+  const _CalendarWidget({
+    required this.focusedDay,
+    required this.selectedDay,
+    required this.moonVoid,
+    required this.lunar,
+    required this.onDaySelected,
+    required this.onMonthChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final year = focusedDay.year;
+    final month = focusedDay.month;
+
+    // 이 달의 첫째 날
+    final firstDay = DateTime(year, month, 1);
+    // 첫째 날의 요일 (0=월, 6=일)
+    final startWeekday = (firstDay.weekday - 1) % 7;
+    // 이 달의 마지막 날
+    final lastDay = DateTime(year, month + 1, 0).day;
+
+    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    const headerStyle = TextStyle(fontWeight: FontWeight.w800, fontSize: 15);
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      child: Column(
+        children: [
+          // 월 헤더
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: () => onMonthChanged(DateTime(year, month - 1, 1)),
+                ),
+                Text('$year년 $month월', style: headerStyle),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: () => onMonthChanged(DateTime(year, month + 1, 1)),
+                ),
+              ],
+            ),
+          ),
+          // 요일 헤더
+          Row(
+            children: weekdays.asMap().entries.map((e) {
+              final isWeekend = e.key >= 5;
+              return Expanded(
+                child: Center(
+                  child: Text(
+                    e.value,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isWeekend ? Colors.red : Colors.grey[600],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 4),
+          // 날짜 그리드
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              childAspectRatio: 1.0,
+            ),
+            itemCount: startWeekday + lastDay,
+            itemBuilder: (_, index) {
+              if (index < startWeekday) return const SizedBox();
+              final day = index - startWeekday + 1;
+              final date = DateTime(year, month, day);
+              final isSelected = _isSameDay(date, selectedDay);
+              final isToday = _isSameDay(date, DateTime.now());
+              final isHoliday = KoreanHolidays.isHoliday(date);
+              final isVoid = moonVoid && MoonVoidData.isVoidToday(date);
+              final isWeekend = date.weekday == DateTime.saturday ||
+                  date.weekday == DateTime.sunday;
+
+              final lunarDate = lunar ? LunarConverter.toSolar(date) : null;
+
+              Color textColor = (isHoliday || isWeekend)
+                  ? Colors.red[400]!
+                  : Colors.black87;
+              if (isSelected) textColor = Colors.white;
+
+              return GestureDetector(
+                onTap: () => onDaySelected(date),
+                child: Container(
+                  margin: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? const Color(0xFF6C63FF)
+                        : isToday
+                            ? const Color(0xFFEEEEFF)
+                            : isVoid
+                                ? const Color(0xFFF0F0F0)
+                                : Colors.transparent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '$day',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isToday || isSelected
+                                  ? FontWeight.w800
+                                  : FontWeight.w400,
+                              color: textColor,
+                            ),
+                          ),
+                          if (lunarDate != null)
+                            Text(
+                              '${lunarDate.day}',
+                              style: TextStyle(
+                                fontSize: 8,
+                                color: isSelected
+                                    ? Colors.white70
+                                    : const Color(0xFF9999CC),
+                              ),
+                            ),
+                        ],
+                      ),
+                      if (isVoid && !isSelected)
+                        Positioned(
+                          top: 3,
+                          right: 3,
+                          child: Container(
+                            width: 4,
+                            height: 4,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF555555),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
 class _InfoChip extends StatelessWidget {
@@ -245,90 +343,4 @@ class _InfoChip extends StatelessWidget {
     decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
     child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textColor)),
   );
-}
-
-class _DayCell extends StatelessWidget {
-  final DateTime day;
-  final bool isSelected;
-  final bool isToday;
-  final bool isOutside;
-  final bool moonVoid;
-  final bool lunar;
-
-  const _DayCell({
-    required this.day,
-    this.isSelected = false,
-    this.isToday = false,
-    this.isOutside = false,
-    required this.moonVoid,
-    required this.lunar,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isHoliday = KoreanHolidays.isHoliday(day);
-    final isVoid = moonVoid && MoonVoidData.isVoidToday(day);
-    final isWeekend = day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
-    final lunarDate = lunar ? LunarConverter.toSolar(day) : null;
-
-    Color textColor = isOutside
-        ? Colors.grey[400]!
-        : (isHoliday || isWeekend)
-            ? Colors.red[400]!
-            : Colors.black87;
-    if (isSelected) textColor = Colors.white;
-
-    return Container(
-      margin: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? const Color(0xFF6C63FF)
-            : isToday
-                ? const Color(0xFFEEEEFF)
-                : isVoid
-                    ? const Color(0xFFF0F0F0)
-                    : Colors.transparent,
-        shape: BoxShape.circle,
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '${day.day}',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: isToday || isSelected ? FontWeight.w800 : FontWeight.w400,
-                  color: textColor,
-                ),
-              ),
-              if (lunar && lunarDate != null)
-                Text(
-                  '${lunarDate.day}',
-                  style: TextStyle(
-                    fontSize: 8,
-                    color: isSelected ? Colors.white70 : const Color(0xFF9999CC),
-                  ),
-                ),
-            ],
-          ),
-          // 문보이드 작은 점
-          if (isVoid && !isSelected)
-            Positioned(
-              top: 3,
-              right: 3,
-              child: Container(
-                width: 4, height: 4,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF555555),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 }
