@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/intl.dart';
 import '../providers/calendar_provider.dart';
 import '../widgets/event_tile.dart';
 import '../data/korean_holidays.dart';
@@ -77,7 +76,8 @@ class CalendarScreen extends ConsumerWidget {
               calendarBuilders: CalendarBuilders(
                 // 요일 헤더 커스텀
                 dowBuilder: (_, day) {
-                  final text = DateFormat.E('ko_KR').format(day);
+                  const weekdayNames = ['월', '화', '수', '목', '금', '토', '일'];
+                  final text = weekdayNames[day.weekday - 1];
                   final isWeekend = day.weekday == DateTime.saturday ||
                       day.weekday == DateTime.sunday;
                   return Center(
@@ -142,7 +142,10 @@ class CalendarScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      DateFormat('M월 d일 (E)', 'ko_KR').format(selectedDay),
+                      () {
+                        const wd = ['월', '화', '수', '목', '금', '토', '일'];
+                        return '${selectedDay.month}월 ${selectedDay.day}일 (${wd[selectedDay.weekday - 1]})';
+                      }(),
                       style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
                     ),
                     if (lunar)

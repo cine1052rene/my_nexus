@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/date_symbol_data_local.dart';
 import 'core/theme/app_theme.dart';
 import 'features/hub/screens/hub_screen.dart';
 import 'features/calendar/screens/calendar_screen.dart';
@@ -11,7 +10,8 @@ final _router = GoRouter(
   initialLocation: '/hub',
   routes: [
     ShellRoute(
-      builder: (context, state, child) => MainShell(child: child),
+      builder: (context, state, child) =>
+          MainShell(child: child, location: state.uri.toString()),
       routes: [
         GoRoute(path: '/hub', builder: (_, __) => const HubScreen()),
         GoRoute(path: '/calendar', builder: (_, __) => const CalendarScreen()),
@@ -42,7 +42,8 @@ class MyNexusApp extends StatelessWidget {
 // ── 메인 쉘 (BottomNav) ────────────────────────────────────────────────────
 class MainShell extends StatelessWidget {
   final Widget child;
-  const MainShell({super.key, required this.child});
+  final String location;
+  const MainShell({super.key, required this.child, required this.location});
 
   static const _tabs = ['/hub', '/calendar', '/settings'];
   static const _labels = ['DB 허브', '스케줄', '설정'];
@@ -51,7 +52,6 @@ class MainShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final location = GoRouterState.of(context).uri.toString();
     final currentIndex = _tabs.indexWhere((t) => location.startsWith(t));
 
     return Scaffold(
