@@ -94,14 +94,70 @@ class CalendarScreen extends ConsumerWidget {
             ),
           ),
 
+          // ── 문보이드 상세 (시작·종료 시간 + 별자리) ──────────
           if (voidPeriod != null)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              color: const Color(0xFF1A1A2E),
-              child: Text(
-                '🌑 문보이드: ${voidPeriod.description}',
-                style: const TextStyle(color: Colors.white70, fontSize: 11),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: const BoxDecoration(
+                color: Color(0xFF1A1A2E),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Text('🌑', style: TextStyle(fontSize: 14)),
+                      SizedBox(width: 6),
+                      Text('문보이드 (Moon Void of Course)',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      // 시작
+                      _VoidTimeCard(
+                        label: '시작',
+                        time: _fmtTime(voidPeriod.start),
+                        icon: '🌒',
+                        color: const Color(0xFF2A2A4E),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text('→', style: TextStyle(color: Colors.white54, fontSize: 18)),
+                      ),
+                      // 종료
+                      _VoidTimeCard(
+                        label: '종료',
+                        time: _fmtTime(voidPeriod.end),
+                        icon: '🌕',
+                        color: const Color(0xFF2A2A4E),
+                      ),
+                      const Spacer(),
+                      // 이동 별자리
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6C63FF).withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFF6C63FF), width: 1),
+                        ),
+                        child: Text(
+                          '→ ${voidPeriod.entering}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
 
@@ -156,6 +212,10 @@ class CalendarScreen extends ConsumerWidget {
   String _formatDate(DateTime d) {
     const wd = ['월', '화', '수', '목', '금', '토', '일'];
     return '${d.month}월 ${d.day}일 (${wd[d.weekday - 1]})';
+  }
+
+  String _fmtTime(DateTime dt) {
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 }
 
@@ -270,14 +330,25 @@ class _CalendarWidget extends StatelessWidget {
                         ? const Color(0xFF6C63FF)
                         : isToday
                             ? const Color(0xFFEEEEFF)
-                            : isVoid
-                                ? const Color(0xFFF0F0F0)
-                                : Colors.transparent,
+                            : Colors.transparent,
                     shape: BoxShape.circle,
+                    border: isVoid && !isSelected
+                        ? Border.all(color: const Color(0xFF555577), width: 1.5)
+                        : null,
                   ),
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
+                      // 문보이드 배경 오버레이
+                      if (isVoid && !isSelected)
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1A1A2E).withOpacity(0.08),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -303,18 +374,12 @@ class _CalendarWidget extends StatelessWidget {
                             ),
                         ],
                       ),
+                      // 문보이드: 상단 작은 달 아이콘
                       if (isVoid && !isSelected)
-                        Positioned(
-                          top: 3,
-                          right: 3,
-                          child: Container(
-                            width: 4,
-                            height: 4,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF555555),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
+                        const Positioned(
+                          top: 1,
+                          right: 1,
+                          child: Text('🌑', style: TextStyle(fontSize: 7)),
                         ),
                     ],
                   ),
@@ -329,6 +394,31 @@ class _CalendarWidget extends StatelessWidget {
 
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+class _VoidTimeCard extends StatelessWidget {
+  final String label;
+  final String time;
+  final String icon;
+  final Color color;
+  const _VoidTimeCard({required this.label, required this.time, required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('$icon $label', style: const TextStyle(color: Colors.white54, fontSize: 10)),
+        const SizedBox(height: 2),
+        Text(time, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+      ],
+    ),
+  );
 }
 
 class _InfoChip extends StatelessWidget {
