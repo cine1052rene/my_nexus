@@ -1,0 +1,37 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+*.iml
+
+# Android
+android/.gradle
+android/local.properties
+android/app/google-services.json
+
+# iOS
+ios/Flutter/flutter_export_environment.sh
+ios/Pods/
+ios/Runner.xcworkspace/
+*.xcworkspace
+ios/Runner/GoogleService-Info.plist
+
+# Firebase
+.firebase/
+firebase-debug.log
+google-services.json
+GoogleService-Info.plist
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
