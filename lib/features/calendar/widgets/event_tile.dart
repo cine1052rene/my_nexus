@@ -5,14 +5,98 @@ import '../../../core/constants/app_constants.dart';
 class EventTile extends StatelessWidget {
   final ScheduleEvent event;
   final VoidCallback onTap;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete; // 네이티브 이벤트는 null
 
   const EventTile({
     super.key,
     required this.event,
     required this.onTap,
-    required this.onDelete,
+    this.onDelete,
   });
+
+  @override
+  Widget build(BuildContext context) {
+    if (event.isNative) return _NativeTile(event: event, onTap: onTap);
+    return _FirestoreTile(event: event, onTap: onTap, onDelete: onDelete!);
+  }
+}
+
+// ── 네이티브 캘린더 이벤트 타일 ────────────────────────────────
+class _NativeTile extends StatelessWidget {
+  final ScheduleEvent event;
+  final VoidCallback onTap;
+  const _NativeTile({required this.event, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = event.calendarColor != null
+        ? Color(event.calendarColor!)
+        : const Color(0xFF4285F4); // 구글 캘린더 기본 파란색
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: color.withOpacity(0.06),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: color.withOpacity(0.3)),
+      ),
+      child: ListTile(
+        onTap: onTap,
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Center(
+            child: Text('📱', style: TextStyle(fontSize: 20)),
+          ),
+        ),
+        title: Text(
+          event.title,
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!event.allDay && event.startTime != null)
+              Text(
+                '${_fmt(event.startTime!)}${event.endTime != null ? ' ~ ${_fmt(event.endTime!)}' : ''}',
+                style: TextStyle(fontSize: 11, color: color),
+              ),
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text('폰 캘린더',
+                    style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+              ),
+            ]),
+          ],
+        ),
+        trailing: Container(
+          width: 4,
+          height: 40,
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+        ),
+      ),
+    );
+  }
+
+  String _fmt(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+}
+
+// ── Firestore 이벤트 타일 ─────────────────────────────────────
+class _FirestoreTile extends StatelessWidget {
+  final ScheduleEvent event;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+  const _FirestoreTile({required this.event, required this.onTap, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -67,8 +151,7 @@ class EventTile extends StatelessWidget {
             children: [
               if (!event.allDay && event.startTime != null)
                 Text(
-                  '${event.startTime!.hour.toString().padLeft(2,'0')}:${event.startTime!.minute.toString().padLeft(2,'0')}' +
-                  (event.endTime != null ? ' ~ ${event.endTime!.hour.toString().padLeft(2,'0')}:${event.endTime!.minute.toString().padLeft(2,'0')}' : ''),
+                  '${_fmt(event.startTime!)}${event.endTime != null ? ' ~ ${_fmt(event.endTime!)}' : ''}',
                   style: TextStyle(fontSize: 11, color: color),
                 ),
               Row(children: [
@@ -81,15 +164,15 @@ class EventTile extends StatelessWidget {
           trailing: Container(
             width: 4,
             height: 40,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(2),
-            ),
+            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
           ),
         ),
       ),
     );
   }
+
+  String _fmt(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 }
 
 class _RecurringBadge extends StatelessWidget {

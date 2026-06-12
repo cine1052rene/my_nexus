@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/schedule_event.dart';
 import '../../../shared/services/firestore_service.dart';
+import '../../../shared/services/google_calendar_service.dart';
 
 // 선택된 날짜
 final selectedDayProvider = StateProvider<DateTime>((ref) => DateTime.now());
@@ -9,11 +10,22 @@ final selectedDayProvider = StateProvider<DateTime>((ref) => DateTime.now());
 // 표시 중인 달
 final focusedDayProvider = StateProvider<DateTime>((ref) => DateTime.now());
 
-// 문보이드 온/오프
-final moonVoidEnabledProvider = StateProvider<bool>((ref) => true);
-
 // 음력 표시 온/오프
 final lunarEnabledProvider = StateProvider<bool>((ref) => true);
+
+// 구글 캘린더 온/오프
+final googleCalendarEnabledProvider = StateProvider<bool>((ref) => false);
+
+// 구글 캘린더 이벤트 (월 단위 캐시)
+final googleCalendarEventsProvider =
+    FutureProvider.family<List<ScheduleEvent>, DateTime>(
+  (ref, month) async {
+    final enabled = ref.watch(googleCalendarEnabledProvider);
+    if (!enabled) return [];
+    final normalized = DateTime(month.year, month.month, 1);
+    return GoogleCalendarService.getEventsForMonth(normalized);
+  },
+);
 
 // 전체 이벤트 스트림
 final eventsStreamProvider = StreamProvider<List<ScheduleEvent>>(

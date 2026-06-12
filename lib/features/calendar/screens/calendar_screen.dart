@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/calendar_provider.dart';
 import '../widgets/event_tile.dart';
 import '../data/korean_holidays.dart';
-import '../data/moon_void_data.dart';
 import '../../../core/utils/lunar_converter.dart';
+import '../../../shared/services/google_calendar_service.dart';
 import 'add_event_sheet.dart';
 
 class CalendarScreen extends ConsumerWidget {
@@ -14,41 +14,54 @@ class CalendarScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedDay = ref.watch(selectedDayProvider);
     final focusedDay = ref.watch(focusedDayProvider);
-    final moonVoid = ref.watch(moonVoidEnabledProvider);
     final lunar = ref.watch(lunarEnabledProvider);
-    final dayEvents = ref.watch(dayEventsProvider(selectedDay));
+    final googleEnabled = ref.watch(googleCalendarEnabledProvider);
+
+    // Firestore 이벤트
+    final firestoreEvents = ref.watch(dayEventsProvider(selectedDay));
+
+    // 구글 캘린더 이벤트 (해당 월 전체 → 선택일 필터)
+    final monthKey = DateTime(selectedDay.year, selectedDay.month, 1);
+    final googleAsync = ref.watch(googleCalendarEventsProvider(monthKey));
+    final googleEvents = googleAsync.when(
+      data: (list) => list.where((e) => e.occursOn(selectedDay)).toList(),
+      loading: () => <dynamic>[],
+      error: (_, __) => <dynamic>[],
+    );
+
+    final allEvents = [...firestoreEvents, ...googleEvents];
 
     final lunarDate = LunarConverter.toSolar(selectedDay);
     final holiday = KoreanHolidays.getHoliday(selectedDay);
-    final voidPeriod = moonVoid ? MoonVoidData.getVoidForDate(selectedDay) : null;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('📅 스케줄'),
         actions: [
+          // 음력 토글
           IconButton(
             icon: Icon(Icons.brightness_2_outlined,
                 color: lunar ? const Color(0xFF6C63FF) : Colors.grey),
             tooltip: '음력 표시',
             onPressed: () => ref.read(lunarEnabledProvider.notifier).state = !lunar,
           ),
+          // 구글 캘린더 토글
           IconButton(
-            icon: Text('🌑', style: TextStyle(
-                fontSize: 20,
-                color: moonVoid ? Colors.black : Colors.grey[400])),
-            tooltip: '문보이드 달력',
-            onPressed: () =>
-                ref.read(moonVoidEnabledProvider.notifier).state = !moonVoid,
+            icon: Icon(
+              Icons.calendar_today,
+              color: googleEnabled ? const Color(0xFF4285F4) : Colors.grey,
+            ),
+            tooltip: '구글 캘린더 연동',
+            onPressed: () => _toggleGoogleCalendar(context, ref, googleEnabled),
           ),
         ],
       ),
       body: Column(
         children: [
-          // ── 달력 헤더 ─────────────────────────────────────────
+          // ── 달력 ─────────────────────────────────────────────
           _CalendarWidget(
             focusedDay: focusedDay,
             selectedDay: selectedDay,
-            moonVoid: moonVoid,
             lunar: lunar,
             onDaySelected: (day) {
               ref.read(selectedDayProvider.notifier).state = day;
@@ -80,90 +93,23 @@ class CalendarScreen extends ConsumerWidget {
                 const SizedBox(width: 10),
                 if (holiday != null)
                   _InfoChip(label: holiday, color: Colors.red.shade50, textColor: Colors.red),
-                if (voidPeriod != null) ...[
+                if (googleEnabled && googleAsync.isLoading) ...[
                   const SizedBox(width: 6),
-                  _InfoChip(
-                    label: '🌑 문보이드',
-                    color: const Color(0xFF1A1A2E),
-                    textColor: Colors.white,
+                  const SizedBox(
+                    width: 14, height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                 ],
                 const Spacer(),
-                Text('${dayEvents.length}개', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                Text('${allEvents.length}개',
+                    style: const TextStyle(color: Colors.grey, fontSize: 13)),
               ],
             ),
           ),
 
-          // ── 문보이드 상세 (시작·종료 시간 + 별자리) ──────────
-          if (voidPeriod != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: const BoxDecoration(
-                color: Color(0xFF1A1A2E),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Text('🌑', style: TextStyle(fontSize: 14)),
-                      SizedBox(width: 6),
-                      Text('문보이드 (Moon Void of Course)',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      // 시작
-                      _VoidTimeCard(
-                        label: '시작',
-                        time: _fmtTime(voidPeriod.start),
-                        icon: '🌒',
-                        color: const Color(0xFF2A2A4E),
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8),
-                        child: Text('→', style: TextStyle(color: Colors.white54, fontSize: 18)),
-                      ),
-                      // 종료
-                      _VoidTimeCard(
-                        label: '종료',
-                        time: _fmtTime(voidPeriod.end),
-                        icon: '🌕',
-                        color: const Color(0xFF2A2A4E),
-                      ),
-                      const Spacer(),
-                      // 이동 별자리
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF6C63FF).withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFF6C63FF), width: 1),
-                        ),
-                        child: Text(
-                          '→ ${voidPeriod.entering}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
           // ── 이벤트 목록 ──────────────────────────────────────
           Expanded(
-            child: dayEvents.isEmpty
+            child: allEvents.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -176,20 +122,26 @@ class CalendarScreen extends ConsumerWidget {
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-                    itemCount: dayEvents.length,
+                    itemCount: allEvents.length,
                     itemBuilder: (_, i) {
-                      final event = dayEvents[i];
+                      final event = allEvents[i];
                       return EventTile(
                         event: event,
-                        onTap: () => showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (_) => AddEventSheet(editEvent: event),
-                        ),
-                        onDelete: () => ref
-                            .read(calendarNotifierProvider.notifier)
-                            .deleteEvent(event.id),
+                        onTap: () {
+                          if (!event.isNative) {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => AddEventSheet(editEvent: event),
+                            );
+                          }
+                        },
+                        onDelete: event.isNative
+                            ? null
+                            : () => ref
+                                .read(calendarNotifierProvider.notifier)
+                                .deleteEvent(event.id),
                       );
                     },
                   ),
@@ -209,21 +161,33 @@ class CalendarScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _toggleGoogleCalendar(
+      BuildContext context, WidgetRef ref, bool currentEnabled) async {
+    if (!currentEnabled) {
+      final granted = await GoogleCalendarService.requestPermission();
+      if (!granted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('구글 캘린더 연동에 실패했어요. 다시 시도해주세요.')),
+        );
+        return;
+      }
+      ref.read(googleCalendarEnabledProvider.notifier).state = true;
+    } else {
+      await GoogleCalendarService.disconnect();
+      ref.read(googleCalendarEnabledProvider.notifier).state = false;
+    }
+  }
+
   String _formatDate(DateTime d) {
     const wd = ['월', '화', '수', '목', '금', '토', '일'];
     return '${d.month}월 ${d.day}일 (${wd[d.weekday - 1]})';
   }
-
-  String _fmtTime(DateTime dt) {
-    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
 }
 
-// ── 커스텀 달력 위젯 (table_calendar 없이) ───────────────────
+// ── 커스텀 달력 위젯 ──────────────────────────────────────────
 class _CalendarWidget extends StatelessWidget {
   final DateTime focusedDay;
   final DateTime selectedDay;
-  final bool moonVoid;
   final bool lunar;
   final ValueChanged<DateTime> onDaySelected;
   final ValueChanged<DateTime> onMonthChanged;
@@ -231,7 +195,6 @@ class _CalendarWidget extends StatelessWidget {
   const _CalendarWidget({
     required this.focusedDay,
     required this.selectedDay,
-    required this.moonVoid,
     required this.lunar,
     required this.onDaySelected,
     required this.onMonthChanged,
@@ -241,25 +204,30 @@ class _CalendarWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final year = focusedDay.year;
     final month = focusedDay.month;
-
-    // 이 달의 첫째 날
     final firstDay = DateTime(year, month, 1);
-    // 첫째 날의 요일 (0=월, 6=일)
-    final startWeekday = (firstDay.weekday - 1) % 7;
-    // 이 달의 마지막 날
+    final startWeekday = (firstDay.weekday - 1) % 7; // 0=월
     final lastDay = DateTime(year, month + 1, 0).day;
 
+    final allDays = <DateTime?>[];
+    for (int i = 0; i < startWeekday; i++) allDays.add(null);
+    for (int d = 1; d <= lastDay; d++) allDays.add(DateTime(year, month, d));
+    while (allDays.length % 7 != 0) allDays.add(null);
+
+    final weeks = <List<DateTime?>>[];
+    for (int i = 0; i < allDays.length; i += 7) {
+      weeks.add(allDays.sublist(i, i + 7));
+    }
+
     const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
-    const headerStyle = TextStyle(fontWeight: FontWeight.w800, fontSize: 15);
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
       child: Column(
         children: [
-          // 월 헤더
+          // ── 월 헤더
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -267,7 +235,8 @@ class _CalendarWidget extends StatelessWidget {
                   icon: const Icon(Icons.chevron_left),
                   onPressed: () => onMonthChanged(DateTime(year, month - 1, 1)),
                 ),
-                Text('$year년 $month월', style: headerStyle),
+                Text('$year년 $month월',
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                 IconButton(
                   icon: const Icon(Icons.chevron_right),
                   onPressed: () => onMonthChanged(DateTime(year, month + 1, 1)),
@@ -275,118 +244,86 @@ class _CalendarWidget extends StatelessWidget {
               ],
             ),
           ),
-          // 요일 헤더
+          // ── 요일 헤더
           Row(
             children: weekdays.asMap().entries.map((e) {
               final isWeekend = e.key >= 5;
               return Expanded(
                 child: Center(
-                  child: Text(
-                    e.value,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isWeekend ? Colors.red : Colors.grey[600],
-                    ),
-                  ),
+                  child: Text(e.value,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isWeekend ? Colors.red : Colors.grey[600],
+                      )),
                 ),
               );
             }).toList(),
           ),
-          const SizedBox(height: 4),
-          // 날짜 그리드
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              childAspectRatio: 1.0,
-            ),
-            itemCount: startWeekday + lastDay,
-            itemBuilder: (_, index) {
-              if (index < startWeekday) return const SizedBox();
-              final day = index - startWeekday + 1;
-              final date = DateTime(year, month, day);
-              final isSelected = _isSameDay(date, selectedDay);
-              final isToday = _isSameDay(date, DateTime.now());
-              final isHoliday = KoreanHolidays.isHoliday(date);
-              final isVoid = moonVoid && MoonVoidData.isVoidToday(date);
-              final isWeekend = date.weekday == DateTime.saturday ||
-                  date.weekday == DateTime.sunday;
+          const SizedBox(height: 2),
+          // ── 주 단위 행
+          ...weeks.map((week) {
+            return Row(
+              children: week.asMap().entries.map((e) {
+                final col = e.key;
+                final date = e.value;
+                if (date == null) {
+                  return Expanded(child: AspectRatio(aspectRatio: 1, child: Container()));
+                }
+                final isSelected = _isSameDay(date, selectedDay);
+                final isToday = _isSameDay(date, DateTime.now());
+                final isHoliday = KoreanHolidays.isHoliday(date);
+                final isWeekend = col >= 5;
+                final lunarDate = lunar ? LunarConverter.toSolar(date) : null;
 
-              final lunarDate = lunar ? LunarConverter.toSolar(date) : null;
+                Color textColor = (isHoliday || isWeekend)
+                    ? Colors.red[400]!
+                    : Colors.black87;
+                if (isSelected) textColor = Colors.white;
 
-              Color textColor = (isHoliday || isWeekend)
-                  ? Colors.red[400]!
-                  : Colors.black87;
-              if (isSelected) textColor = Colors.white;
-
-              return GestureDetector(
-                onTap: () => onDaySelected(date),
-                child: Container(
-                  margin: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? const Color(0xFF6C63FF)
-                        : isToday
-                            ? const Color(0xFFEEEEFF)
-                            : Colors.transparent,
-                    shape: BoxShape.circle,
-                    border: isVoid && !isSelected
-                        ? Border.all(color: const Color(0xFF555577), width: 1.5)
-                        : null,
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // 문보이드 배경 오버레이
-                      if (isVoid && !isSelected)
-                        Positioned.fill(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1A1A2E).withOpacity(0.08),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
+                return Expanded(
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: GestureDetector(
+                      onTap: () => onDaySelected(date),
+                      child: Container(
+                        margin: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFF6C63FF)
+                              : isToday
+                                  ? const Color(0xFFEEEEFF)
+                                  : Colors.transparent,
+                          shape: BoxShape.circle,
                         ),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '$day',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: isToday || isSelected
-                                  ? FontWeight.w800
-                                  : FontWeight.w400,
-                              color: textColor,
-                            ),
-                          ),
-                          if (lunarDate != null)
-                            Text(
-                              '${lunarDate.day}',
-                              style: TextStyle(
-                                fontSize: 8,
-                                color: isSelected
-                                    ? Colors.white70
-                                    : const Color(0xFF9999CC),
-                              ),
-                            ),
-                        ],
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('${date.day}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: isToday || isSelected
+                                      ? FontWeight.w800
+                                      : FontWeight.w400,
+                                  color: textColor,
+                                )),
+                            if (lunarDate != null)
+                              Text('${lunarDate.day}',
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    color: isSelected
+                                        ? Colors.white70
+                                        : const Color(0xFF9999CC),
+                                  )),
+                          ],
+                        ),
                       ),
-                      // 문보이드: 상단 작은 달 아이콘
-                      if (isVoid && !isSelected)
-                        const Positioned(
-                          top: 1,
-                          right: 1,
-                          child: Text('🌑', style: TextStyle(fontSize: 7)),
-                        ),
-                    ],
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              }).toList(),
+            );
+          }),
         ],
       ),
     );
@@ -394,31 +331,6 @@ class _CalendarWidget extends StatelessWidget {
 
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
-}
-
-class _VoidTimeCard extends StatelessWidget {
-  final String label;
-  final String time;
-  final String icon;
-  final Color color;
-  const _VoidTimeCard({required this.label, required this.time, required this.icon, required this.color});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('$icon $label', style: const TextStyle(color: Colors.white54, fontSize: 10)),
-        const SizedBox(height: 2),
-        Text(time, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
-      ],
-    ),
-  );
 }
 
 class _InfoChip extends StatelessWidget {

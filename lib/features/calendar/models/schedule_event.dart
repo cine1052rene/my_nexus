@@ -13,6 +13,8 @@ class ScheduleEvent {
   final bool allDay;
   final DateTime? startTime;  // 시간 포함 일정용
   final DateTime? endTime;
+  final bool isNative;         // 폰 기본 캘린더에서 읽어온 일정
+  final int? calendarColor;    // 캘린더 앱 색상
 
   const ScheduleEvent({
     required this.id,
@@ -27,6 +29,8 @@ class ScheduleEvent {
     this.allDay = true,
     this.startTime,
     this.endTime,
+    this.isNative = false,
+    this.calendarColor,
   });
 
   factory ScheduleEvent.fromFirestore(DocumentSnapshot doc) {
@@ -65,6 +69,14 @@ class ScheduleEvent {
   bool occursOn(DateTime checkDate) {
     final d = DateTime(date.year, date.month, date.day);
     final c = DateTime(checkDate.year, checkDate.month, checkDate.day);
+
+    // 네이티브 일정: 시작일~종료일 범위 체크
+    if (isNative) {
+      final end = endDate != null
+          ? DateTime(endDate!.year, endDate!.month, endDate!.day)
+          : d;
+      return !c.isBefore(d) && !c.isAfter(end);
+    }
 
     if (eventType == 'once') return d == c;
     if (d.isAfter(c)) return false;
