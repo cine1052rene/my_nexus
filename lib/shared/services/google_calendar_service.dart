@@ -1,43 +1,25 @@
 import 'dart:convert';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import '../../features/calendar/models/schedule_event.dart';
-
-// Calendar 스코프를 포함한 GoogleSignIn 인스턴스
-final _gSignIn = GoogleSignIn(
-  scopes: [
-    'https://www.googleapis.com/auth/calendar.readonly',
-  ],
-);
+import 'google_auth_service.dart';
 
 class GoogleCalendarService {
   /// 구글 캘린더 권한 요청 (로그인 포함)
   static Future<bool> requestPermission() async {
-    try {
-      var user = _gSignIn.currentUser;
-      user ??= await _gSignIn.signInSilently();
-      user ??= await _gSignIn.signIn();
-      return user != null;
-    } catch (_) {
-      return false;
-    }
+    final token = await getGoogleAccessToken(promptSignIn: true);
+    return token != null;
   }
 
   /// 현재 연결 상태
-  static bool get isConnected => _gSignIn.currentUser != null;
+  static bool get isConnected => appGoogleSignIn.currentUser != null;
 
   /// 연결 해제
-  static Future<void> disconnect() async => await _gSignIn.signOut();
+  static Future<void> disconnect() async => await appGoogleSignIn.signOut();
 
   /// 특정 월의 Google Calendar 이벤트 → ScheduleEvent 리스트로 반환
   static Future<List<ScheduleEvent>> getEventsForMonth(DateTime month) async {
     try {
-      var user = _gSignIn.currentUser;
-      user ??= await _gSignIn.signInSilently();
-      if (user == null) return [];
-
-      final auth = await user.authentication;
-      final token = auth.accessToken;
+      final token = await getGoogleAccessToken();
       if (token == null) return [];
 
       // 해당 월 범위 (UTC)

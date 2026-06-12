@@ -8,6 +8,7 @@ import 'features/hub/screens/hub_screen.dart';
 import 'features/calendar/screens/calendar_screen.dart';
 import 'features/chat/screens/chat_screen.dart';
 import 'features/settings/screens/settings_screen.dart';
+import 'features/email/screens/email_screen.dart';
 
 // Auth 상태를 반영한 라우터
 GoRouter _buildRouter(bool isLoggedIn) => GoRouter(
@@ -26,6 +27,7 @@ GoRouter _buildRouter(bool isLoggedIn) => GoRouter(
       routes: [
         GoRoute(path: '/hub',      builder: (_, __) => const HubScreen()),
         GoRoute(path: '/calendar', builder: (_, __) => const CalendarScreen()),
+        GoRoute(path: '/email',    builder: (_, __) => const EmailScreen()),
         GoRoute(path: '/chat',     builder: (_, __) => const ChatScreen()),
         GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
       ],
@@ -72,17 +74,19 @@ class MainShell extends StatelessWidget {
   final String location;
   const MainShell({super.key, required this.child, required this.location});
 
-  static const _tabs   = ['/hub', '/calendar', '/chat', '/settings'];
-  static const _labels = ['DB 허브', '스케줄', '챗봇', '설정'];
+  static const _tabs   = ['/hub', '/calendar', '/email', '/chat', '/settings'];
+  static const _labels = ['DB 허브', '스케줄', '메일', '챗봇', '설정'];
   static const _icons  = [
     Icons.folder_outlined,
     Icons.calendar_month_outlined,
+    Icons.mail_outline,
     Icons.chat_bubble_outline,
     Icons.settings_outlined,
   ];
   static const _activeIcons = [
     Icons.folder,
     Icons.calendar_month,
+    Icons.mail,
     Icons.chat_bubble,
     Icons.settings,
   ];
