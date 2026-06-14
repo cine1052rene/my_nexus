@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/constants/tab_defs.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/hub/screens/hub_screen.dart';
 import 'features/calendar/screens/calendar_screen.dart';
 import 'features/chat/screens/chat_screen.dart';
 import 'features/settings/screens/settings_screen.dart';
+import 'features/settings/providers/settings_provider.dart';
 import 'features/email/screens/email_screen.dart';
+import 'features/myroom/screens/myroom_screen.dart';
 
 // Auth 상태를 반영한 라우터
 GoRouter _buildRouter(bool isLoggedIn) => GoRouter(
@@ -29,6 +32,7 @@ GoRouter _buildRouter(bool isLoggedIn) => GoRouter(
         GoRoute(path: '/calendar', builder: (_, __) => const CalendarScreen()),
         GoRoute(path: '/email',    builder: (_, __) => const EmailScreen()),
         GoRoute(path: '/chat',     builder: (_, __) => const ChatScreen()),
+        GoRoute(path: '/myroom',   builder: (_, __) => const MyroomScreen()),
         GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
       ],
     ),
@@ -43,12 +47,9 @@ class MyNexusApp extends ConsumerWidget {
     final authAsync = ref.watch(authStateProvider);
 
     return authAsync.when(
-      // 로딩 중 (앱 시작 시 auth 확인)
       loading: () => const MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
       ),
       error: (_, __) => const MaterialApp(
         home: Scaffold(body: Center(child: Text('오류가 발생했어요'))),
@@ -68,32 +69,28 @@ class MyNexusApp extends ConsumerWidget {
   }
 }
 
-// ── 메인 쉘 (BottomNav 4탭) ───────────────────────────────────
-class MainShell extends StatelessWidget {
+// ── 메인 쉘 (동적 BottomNav) ──────────────────────────────────
+class MainShell extends ConsumerWidget {
   final Widget child;
   final String location;
   const MainShell({super.key, required this.child, required this.location});
 
-  static const _tabs   = ['/hub', '/calendar', '/email', '/chat', '/settings'];
-  static const _labels = ['DB 허브', '스케줄', '메일', '챗봇', '설정'];
-  static const _icons  = [
-    Icons.folder_outlined,
-    Icons.calendar_month_outlined,
-    Icons.mail_outline,
-    Icons.chat_bubble_outline,
-    Icons.settings_outlined,
-  ];
-  static const _activeIcons = [
-    Icons.folder,
-    Icons.calendar_month,
-    Icons.mail,
-    Icons.chat_bubble,
-    Icons.settings,
-  ];
-
   @override
-  Widget build(BuildContext context) {
-    final currentIndex = _tabs.indexWhere((t) => location.startsWith(t));
+  Widget build(BuildContext context, WidgetRef ref) {
+    final featuresAsync = ref.watch(tabFeaturesProvider);
+    final featureMap = featuresAsync.valueOrNull ?? {};
+
+    // 표시할 탭 = 활성화된 탭 + settings(항상)
+    final visibleTabs = kAllTabs.where((tab) {
+      if (tab.alwaysOn) return true;
+      return featureMap[tab.id] ?? tab.defaultEnabled;
+    }).toList();
+
+    // 현재 위치에 해당하는 탭 인덱스
+    int currentIndex = visibleTabs.indexWhere(
+      (t) => location.startsWith(t.path),
+    );
+    if (currentIndex < 0) currentIndex = 0;
 
     return Scaffold(
       body: child,
@@ -102,17 +99,16 @@ class MainShell extends StatelessWidget {
           border: Border(top: BorderSide(color: Color(0xFFEEEEF5), width: 1)),
         ),
         child: BottomNavigationBar(
-          currentIndex: currentIndex < 0 ? 0 : currentIndex,
-          onTap: (i) => context.go(_tabs[i]),
+          currentIndex: currentIndex,
+          onTap: (i) => context.go(visibleTabs[i].path),
           type: BottomNavigationBarType.fixed,
-          items: List.generate(
-            _tabs.length,
-            (i) => BottomNavigationBarItem(
-              icon: Icon(_icons[i]),
-              activeIcon: Icon(_activeIcons[i]),
-              label: _labels[i],
-            ),
-          ),
+          items: visibleTabs
+              .map((t) => BottomNavigationBarItem(
+                    icon: Icon(t.icon),
+                    activeIcon: Icon(t.activeIcon),
+                    label: t.label,
+                  ))
+              .toList(),
         ),
       ),
     );

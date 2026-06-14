@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../features/hub/models/link_item.dart';
 import '../../features/calendar/models/schedule_event.dart';
+import '../../features/myroom/models/video_clip.dart';
 
 /// Firestore CRUD 서비스 + 사용량 추적
 class FirestoreService {
@@ -19,16 +20,20 @@ class FirestoreService {
   int get writes => _writes;
   int get deletes => _deletes;
 
-  // ── 컬렉션 참조 ──────────────────────────────────────────
+  // ── 컬렉션 참조 ────────────────────────────────────────────
   CollectionReference<Map<String, dynamic>> get _linksCol =>
       _db.collection('links');
 
   CollectionReference<Map<String, dynamic>> get _eventsCol =>
       _db.collection('events');
 
-  // ── 링크 허브 CRUD ────────────────────────────────────────
+  CollectionReference<Map<String, dynamic>> get _clipsCol =>
+      _db.collection('video_clips');
+
+  // ── 링크 허브 CRUD ──────────────────────────────────────────
   Stream<List<LinkItem>> linksStream({String? category}) {
-    Query<Map<String, dynamic>> q = _linksCol.orderBy('createdAt', descending: true);
+    Query<Map<String, dynamic>> q =
+        _linksCol.orderBy('createdAt', descending: true);
     if (category != null && category != 'all') {
       q = q.where('category', isEqualTo: category);
     }
@@ -53,7 +58,7 @@ class FirestoreService {
     _deletes++;
   }
 
-  // ── 일정/이벤트 CRUD ──────────────────────────────────────
+  // ── 일정/이벤트 CRUD ────────────────────────────────────────
   Stream<List<ScheduleEvent>> eventsStream() {
     return _eventsCol.snapshots().map((snap) {
       _reads += snap.docs.length;
@@ -76,7 +81,35 @@ class FirestoreService {
     _deletes++;
   }
 
-  // ── 사용량 리셋 ───────────────────────────────────────────
+  // ── 마이룸 비디오 클립 CRUD ─────────────────────────────────
+  Stream<List<VideoClip>> clipsStream({String? platform}) {
+    Query<Map<String, dynamic>> q =
+        _clipsCol.orderBy('createdAt', descending: true);
+    if (platform != null && platform != 'all') {
+      q = q.where('platform', isEqualTo: platform);
+    }
+    return q.snapshots().map((snap) {
+      _reads += snap.docs.length;
+      return snap.docs.map((d) => VideoClip.fromFirestore(d)).toList();
+    });
+  }
+
+  Future<void> addClip(VideoClip clip) async {
+    await _clipsCol.doc(clip.id).set(clip.toFirestore());
+    _writes++;
+  }
+
+  Future<void> updateClip(VideoClip clip) async {
+    await _clipsCol.doc(clip.id).update(clip.toFirestore());
+    _writes++;
+  }
+
+  Future<void> deleteClip(String id) async {
+    await _clipsCol.doc(id).delete();
+    _deletes++;
+  }
+
+  // ── 사용량 리셋 ─────────────────────────────────────────────
   void resetCounters() {
     _reads = 0;
     _writes = 0;
