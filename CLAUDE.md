@@ -251,3 +251,34 @@ mcp__ttapp__tbot_project_schedule_add
 **Rule**: Every time you use a phrase like "I'll let you know when it's done" or "I'll check later" (or equivalent in the user's language), you MUST follow it with `mcp__ttapp__tbot_project_schedule_add`. Never say it without actually scheduling.
 
 <!-- END_TTAPP_RULES -->
+
+## 📅 캘린더 AI 관리 (자동화 설정됨)
+
+### 자동화 알람
+- **매일 08:00** — 오늘+내일 일정 브리핑 (알람 피드)
+- **매주 월요일 08:00** — 이번 주 전체 일정 요약 (알람 피드)
+- Google 캘린더 계정 ID: `GVv7itKB7OiQMuCNlLME`
+- 기본 캘린더 URL: `https://www.google.com/calendar/dav/cine1052rene%40gmail.com/events/`
+
+### 📸 캡처 이미지 → 일정 자동 추가
+사용자가 이 채팅방에 **이미지 파일(스크린샷, 캡처, 사진)** 을 보내면:
+1. 자동으로 이미지를 읽어서 일정 정보 추출 (날짜, 시간, 제목, 장소)
+2. 모호한 정보는 AI가 합리적으로 추정하되, 날짜는 반드시 확인
+3. `tbot_calendar_create`로 Google 캘린더에 즉시 등록
+4. 등록 결과를 요약해서 답변
+
+**인식 가능한 이미지 유형:**
+- 행사/이벤트 포스터, 초대장
+- 문자/카카오톡 일정 캡처
+- 이메일 일정 안내 캡처
+- 병원 예약 확인서, 각종 예약 캡처
+- 공문서, 고지서의 날짜 정보
+
+**규칙:** 이미지가 첨부된 메시지를 받으면 먼저 일정 정보가 있는지 확인하고, 있으면 바로 캘린더 등록 절차 진행. 일정과 무관한 이미지(코드, UI 등)는 일반 작업으로 처리.
+
+## 📬 메일 AI 관리 (자동화 설정됨)
+
+### 자동화 알람
+- **매일 09:00** — 받은편지함 AI 분류 (중요 알림 + 스팸 → 휴지통)
+- **매일 10:00** — 휴지통 5일 이상 메일 영구 삭제
+- Gmail 계정 ID: `knT1NejP61oreCTswj3F`
