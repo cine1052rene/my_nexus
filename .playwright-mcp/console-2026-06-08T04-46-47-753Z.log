@@ -1,0 +1,4 @@
+[     484ms] [INFO] DDC is about to load 1/2 scripts with pool size = 1000 @ http://localhost:8080/ddc_module_loader.js:1014
+[    1850ms] [INFO] DDC is about to load 843/843 scripts with pool size = 1000 @ http://localhost:8080/ddc_module_loader.js:1014
+[   21171ms] [ERROR] WebSocket connection to 'ws://localhost:8080/$dwdsSseHandler' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:8080/dwds/src/injected/client.js:9788
+[   23719ms] [ERROR] WebSocket connection to 'ws://localhost:8080/$dwdsSseHandler' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:8080/dwds/src/injected/client.js:9788
