@@ -16,6 +16,9 @@ class HubScreen extends ConsumerStatefulWidget {
 }
 
 class _HubScreenState extends ConsumerState<HubScreen> {
+  bool _searchActive = false;
+  final _searchCtrl = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -26,6 +29,22 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     ShareIntentService.listenForSharedText((url) {
       if (mounted) _autoSaveFromShare(url);
     });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _openSearch() {
+    setState(() => _searchActive = true);
+  }
+
+  void _closeSearch() {
+    setState(() => _searchActive = false);
+    _searchCtrl.clear();
+    ref.read(hubSearchProvider.notifier).state = '';
   }
 
   /// 공유 URL → 카테고리·키워드 자동 감지 → 즉시 저장 → SnackBar
@@ -56,7 +75,6 @@ class _HubScreenState extends ConsumerState<HubScreen> {
               .timeout(const Duration(seconds: 5));
           final m = RegExp(r'"title":"([^"]+)"').firstMatch(res.body);
           if (m != null) title = m.group(1)!.replaceAll(r'&amp;', '&');
-          // 키워드 자동 감지 → 태그로 저장
           final kw = YoutubeKeyword.detectFromTitle(title);
           if (kw != null) tags.add(kw.label);
         }
@@ -145,7 +163,6 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     'youtube': '▶️', 'tiktok': '🎵', 'instagram': '📸', 'etc': '🔗',
   }[category] ?? '🔗';
 
-  // ── 뷰모드 아이콘 ────────────────────────────────────────────────
   IconData _viewModeIcon(HubViewMode m) => switch (m) {
     HubViewMode.grid    => Icons.grid_view,
     HubViewMode.compact => Icons.format_list_bulleted,
@@ -155,52 +172,59 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   @override
   Widget build(BuildContext context) {
     final category  = ref.watch(hubCategoryProvider);
-    final search    = ref.watch(hubSearchProvider);
     final links     = ref.watch(filteredLinksProvider);
     final viewMode  = ref.watch(hubViewModeProvider);
     final ytKeyword = ref.watch(hubYoutubeKeywordProvider);
 
-    final isYoutube     = category == 'youtube';
-    final bottomHeight  = isYoutube ? 140.0 : 100.0;
+    final isYoutube    = category == 'youtube';
+    // 카테고리칩 44 + (유튜브키워드 40) — 검색창 제거
+    final bottomHeight = isYoutube ? 84.0 : 44.0;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('📚 DB 허브'),
-        actions: [
-          // 뷰 모드 토글
-          PopupMenuButton<HubViewMode>(
-            icon: Icon(_viewModeIcon(viewMode)),
-            tooltip: '보기 방식',
-            onSelected: (m) => ref.read(hubViewModeProvider.notifier).state = m,
-            itemBuilder: (_) => [
-              _viewMenuItem(HubViewMode.list,    Icons.view_agenda_outlined, '카드 보기'),
-              _viewMenuItem(HubViewMode.grid,    Icons.grid_view,            '그리드 보기'),
-              _viewMenuItem(HubViewMode.compact, Icons.format_list_bulleted, '간략 보기'),
-            ],
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(bottomHeight),
-          child: Column(children: [
-            // 검색창
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: TextField(
-                decoration: InputDecoration(
+        // 검색 활성화 시 title → TextField
+        title: _searchActive
+            ? TextField(
+                controller: _searchCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
                   hintText: '제목, 요약, 태그 검색...',
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  suffixIcon: search.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 18),
-                          onPressed: () =>
-                              ref.read(hubSearchProvider.notifier).state = '',
-                        )
-                      : null,
+                  border: InputBorder.none,
                 ),
                 onChanged: (v) =>
                     ref.read(hubSearchProvider.notifier).state = v,
-              ),
-            ),
+              )
+            : const Text('📚 DB 허브'),
+        actions: _searchActive
+            // 검색 중: X 버튼만
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: _closeSearch,
+                ),
+              ]
+            // 기본: 돋보기 + 뷰모드
+            : [
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  tooltip: '검색',
+                  onPressed: _openSearch,
+                ),
+                PopupMenuButton<HubViewMode>(
+                  icon: Icon(_viewModeIcon(viewMode)),
+                  tooltip: '보기 방식',
+                  onSelected: (m) =>
+                      ref.read(hubViewModeProvider.notifier).state = m,
+                  itemBuilder: (_) => [
+                    _viewMenuItem(HubViewMode.list,    Icons.view_agenda_outlined, '카드 보기'),
+                    _viewMenuItem(HubViewMode.grid,    Icons.grid_view,            '그리드 보기'),
+                    _viewMenuItem(HubViewMode.compact, Icons.format_list_bulleted, '간략 보기'),
+                  ],
+                ),
+              ],
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(bottomHeight),
+          child: Column(children: [
             // 카테고리 필터
             SizedBox(
               height: 44,
@@ -339,7 +363,7 @@ class _GridBody extends StatelessWidget {
       crossAxisCount: 2,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
-      childAspectRatio: 0.70,
+      childAspectRatio: 0.82,
     ),
     itemCount: items.length,
     itemBuilder: (_, i) => LinkCard(

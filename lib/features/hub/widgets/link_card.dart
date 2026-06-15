@@ -87,18 +87,6 @@ class _ListCard extends StatelessWidget {
                       maxLines: 3, overflow: TextOverflow.ellipsis),
                 ),
               ],
-              if (item.tags.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 4,
-                  children: item.tags.map((t) => Chip(
-                    label: Text(t, style: const TextStyle(fontSize: 10)),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                  )).toList(),
-                ),
-              ],
             ]),
           ),
         ]),
@@ -153,13 +141,6 @@ class _GridCard extends StatelessWidget {
               Text(item.title,
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                   maxLines: 2, overflow: TextOverflow.ellipsis),
-              if (item.tags.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(item.tags.take(2).join(' · '),
-                      style: TextStyle(fontSize: 10, color: Colors.grey[500]),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                ),
             ]),
           ),
         ]),
@@ -204,18 +185,6 @@ class _CompactRow extends StatelessWidget {
                   style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
             ])),
-            if (item.tags.isNotEmpty) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0EFFF),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(item.tags.first,
-                    style: const TextStyle(fontSize: 10, color: Color(0xFF6C63FF))),
-              ),
-            ],
             _Menu(onEdit: onEdit, onDelete: onDelete, iconSize: 16),
           ]),
         ),
