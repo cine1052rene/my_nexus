@@ -9,7 +9,7 @@ class FirebaseLimits {
 // 허브 보기 모드
 enum HubViewMode { list, grid, compact }
 
-// 링크 허브 카테고리
+// 링크 허브 카테고리 (미디어 출처 기반)
 class HubCategory {
   final String id;
   final String label;
@@ -17,16 +17,16 @@ class HubCategory {
 
   const HubCategory({required this.id, required this.label, required this.emoji});
 
-  static const all     = HubCategory(id: 'all',      label: '전체',   emoji: '📋');
-  static const youtube = HubCategory(id: 'youtube',  label: '유튜브', emoji: '▶️');
-  static const tiktok  = HubCategory(id: 'tiktok',   label: '틱톡',   emoji: '🎵');
-  static const knitting= HubCategory(id: 'knitting', label: '뜨개질', emoji: '🧶');
-  static const cooking = HubCategory(id: 'cooking',  label: '요리',   emoji: '🍳');
-  static const recipe  = HubCategory(id: 'recipe',   label: '레시피', emoji: '📝');
-  static const etc     = HubCategory(id: 'etc',      label: '기타',   emoji: '📌');
+  static const all       = HubCategory(id: 'all',       label: '전체',   emoji: '📋');
+  static const youtube   = HubCategory(id: 'youtube',   label: '유튜브', emoji: '▶️');
+  static const instagram = HubCategory(id: 'instagram', label: '인스타', emoji: '📸');
+  static const facebook  = HubCategory(id: 'facebook',  label: '페북',   emoji: '👥');
+  static const twitter   = HubCategory(id: 'twitter',   label: '트위터', emoji: '🐦');
+  static const naver     = HubCategory(id: 'naver',     label: '네이버', emoji: '🟢');
+  static const etc       = HubCategory(id: 'etc',       label: '기타',   emoji: '🔗');
 
   static const List<HubCategory> all_list = [
-    all, youtube, tiktok, knitting, cooking, recipe, etc,
+    all, youtube, instagram, facebook, twitter, naver, etc,
   ];
 
   static HubCategory fromId(String id) =>

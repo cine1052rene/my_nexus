@@ -141,11 +141,15 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     });
   }
 
-  // ── 카테고리 자동 감지 ──────────────────────────────────────────
+  // ── 카테고리 자동 감지 (출처별) ───────────────────────────────────
   String _detectCategory(String url) {
-    if (url.contains('youtube.com') || url.contains('youtu.be')) return 'youtube';
-    if (url.contains('tiktok.com'))   return 'tiktok';
-    if (url.contains('instagram.com')) return 'instagram';
+    if (url.contains('youtube.com') || url.contains('youtu.be'))       return 'youtube';
+    if (url.contains('instagram.com'))                                  return 'instagram';
+    if (url.contains('facebook.com') || url.contains('fb.com') ||
+        url.contains('fb.watch'))                                       return 'facebook';
+    if (url.contains('twitter.com') || url.contains('x.com') ||
+        url.contains('t.co'))                                           return 'twitter';
+    if (url.contains('naver.com') || url.contains('naver.me'))         return 'naver';
     return 'etc';
   }
 
@@ -154,13 +158,24 @@ class _HubScreenState extends ConsumerState<HubScreen> {
           .firstMatch(url)?.group(1);
 
   String _defaultTitle(String url, String category) {
-    if (category == 'youtube') return 'YouTube 영상';
-    if (category == 'tiktok')  return 'TikTok 영상';
-    try { return Uri.parse(url).host; } catch (_) { return url; }
+    switch (category) {
+      case 'youtube':   return 'YouTube 영상';
+      case 'instagram': return 'Instagram';
+      case 'facebook':  return 'Facebook';
+      case 'twitter':   return 'Twitter/X';
+      case 'naver':     return '네이버';
+      default:
+        try { return Uri.parse(url).host; } catch (_) { return url; }
+    }
   }
 
   String _categoryEmoji(String category) => const {
-    'youtube': '▶️', 'tiktok': '🎵', 'instagram': '📸', 'etc': '🔗',
+    'youtube':   '▶️',
+    'instagram': '📸',
+    'facebook':  '👥',
+    'twitter':   '🐦',
+    'naver':     '🟢',
+    'etc':       '🔗',
   }[category] ?? '🔗';
 
   IconData _viewModeIcon(HubViewMode m) => switch (m) {
@@ -318,32 +333,60 @@ class _GridBody extends StatelessWidget {
   );
 }
 
-// ── 카테고리 아이콘 바 ─────────────────────────────────────────────
+// ── 카테고리 아이콘 바 (출처별) ───────────────────────────────────
 class _CategoryIconBar extends StatelessWidget {
   final String selected;
   final void Function(String id) onSelect;
 
   const _CategoryIconBar({required this.selected, required this.onSelect});
 
-  static const _icons = <String, IconData>{
-    'all':      Icons.apps,
-    'youtube':  Icons.play_circle_filled,
-    'tiktok':   Icons.music_note,
-    'knitting': Icons.hub_outlined,
-    'cooking':  Icons.restaurant,
-    'recipe':   Icons.menu_book,
-    'etc':      Icons.link,
+  // 출처별 브랜드 컬러
+  static const _colors = <String, Color>{
+    'all':       Color(0xFF6C63FF),
+    'youtube':   Color(0xFFFF0000),
+    'instagram': Color(0xFFE1306C),
+    'facebook':  Color(0xFF1877F2),
+    'twitter':   Color(0xFF000000),
+    'naver':     Color(0xFF03C75A),
+    'etc':       Color(0xFF607D8B),
   };
 
-  static const _colors = <String, Color>{
-    'all':      Color(0xFF6C63FF),
-    'youtube':  Color(0xFFFF0000),
-    'tiktok':   Color(0xFF000000),
-    'knitting': Color(0xFF9C27B0),
-    'cooking':  Color(0xFFFF9800),
-    'recipe':   Color(0xFF4CAF50),
-    'etc':      Color(0xFF607D8B),
+  // Material 아이콘 (브랜드 아이콘 없는 경우 대체)
+  static const _icons = <String, IconData>{
+    'all':       Icons.apps,
+    'youtube':   Icons.play_circle_filled,
+    'instagram': Icons.camera_alt,
+    'etc':       Icons.link,
   };
+
+  // 브랜드 텍스트 아이콘 (Material 아이콘 없는 경우)
+  static const _labels = <String, String>{
+    'facebook': 'f',
+    'twitter':  'X',
+    'naver':    'N',
+  };
+
+  Widget _iconWidget(String id, bool isSelected) {
+    final color = isSelected
+        ? (_colors[id] ?? const Color(0xFF6C63FF))
+        : const Color(0xFFBDBDBD);
+
+    // 브랜드 텍스트 아이콘
+    if (_labels.containsKey(id)) {
+      return Text(
+        _labels[id]!,
+        style: TextStyle(
+          fontSize: id == 'twitter' ? 16 : 18,
+          fontWeight: FontWeight.w900,
+          color: color,
+          height: 1.1,
+        ),
+      );
+    }
+
+    // Material 아이콘
+    return Icon(_icons[id] ?? Icons.label_outline, size: 20, color: color);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -354,7 +397,6 @@ class _CategoryIconBar extends StatelessWidget {
         children: cats.map((cat) {
           final isSelected = selected == cat.id;
           final color = _colors[cat.id] ?? const Color(0xFF6C63FF);
-          final icon  = _icons[cat.id]  ?? Icons.label_outline;
           return Expanded(
             child: GestureDetector(
               onTap: () => onSelect(cat.id),
@@ -362,16 +404,12 @@ class _CategoryIconBar extends StatelessWidget {
               child: Center(
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.all(5),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: isSelected ? color.withOpacity(0.15) : Colors.transparent,
+                    color: isSelected ? color.withOpacity(0.12) : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: isSelected ? color : Colors.grey[400],
-                  ),
+                  child: _iconWidget(cat.id, isSelected),
                 ),
               ),
             ),
