@@ -218,25 +218,11 @@ class _HubScreenState extends ConsumerState<HubScreen> {
                 ),
               ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(44),
-          child: SizedBox(
-            height: 44,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: HubCategory.all_list.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 6),
-              itemBuilder: (_, i) {
-                final cat = HubCategory.all_list[i];
-                final selected = category == cat.id;
-                return FilterChip(
-                  label: Text('${cat.emoji} ${cat.label}'),
-                  selected: selected,
-                  onSelected: (_) =>
-                      ref.read(hubCategoryProvider.notifier).state = cat.id,
-                );
-              },
-            ),
+          preferredSize: const Size.fromHeight(36),
+          child: _CategoryIconBar(
+            selected: category,
+            onSelect: (id) =>
+                ref.read(hubCategoryProvider.notifier).state = id,
           ),
         ),
       ),
@@ -330,4 +316,68 @@ class _GridBody extends StatelessWidget {
       onDelete: () => onDelete(items[i]),
     ),
   );
+}
+
+// ── 카테고리 아이콘 바 ─────────────────────────────────────────────
+class _CategoryIconBar extends StatelessWidget {
+  final String selected;
+  final void Function(String id) onSelect;
+
+  const _CategoryIconBar({required this.selected, required this.onSelect});
+
+  static const _icons = <String, IconData>{
+    'all':      Icons.apps,
+    'youtube':  Icons.play_circle_filled,
+    'tiktok':   Icons.music_note,
+    'knitting': Icons.hub_outlined,
+    'cooking':  Icons.restaurant,
+    'recipe':   Icons.menu_book,
+    'etc':      Icons.link,
+  };
+
+  static const _colors = <String, Color>{
+    'all':      Color(0xFF6C63FF),
+    'youtube':  Color(0xFFFF0000),
+    'tiktok':   Color(0xFF000000),
+    'knitting': Color(0xFF9C27B0),
+    'cooking':  Color(0xFFFF9800),
+    'recipe':   Color(0xFF4CAF50),
+    'etc':      Color(0xFF607D8B),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final cats = HubCategory.all_list;
+    return SizedBox(
+      height: 36,
+      child: Row(
+        children: cats.map((cat) {
+          final isSelected = selected == cat.id;
+          final color = _colors[cat.id] ?? const Color(0xFF6C63FF);
+          final icon  = _icons[cat.id]  ?? Icons.label_outline;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onSelect(cat.id),
+              behavior: HitTestBehavior.opaque,
+              child: Center(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: isSelected ? color.withOpacity(0.15) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: isSelected ? color : Colors.grey[400],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
 }
