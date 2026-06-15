@@ -232,21 +232,23 @@ class _HubScreenState extends ConsumerState<HubScreen> {
                 onDelete: () async {
                   final ok = await showDialog<bool>(
                     context: context,
-                    builder: (_) => AlertDialog(
+                    // ✅ dialogCtx 를 써야 다이얼로그만 닫힘
+                    // context(HubScreen)를 쓰면 ShellRoute 전체가 pop → 블랙화면
+                    builder: (dialogCtx) => AlertDialog(
                       title: const Text('삭제'),
                       content: const Text('이 링크를 삭제할까요?'),
                       actions: [
                         TextButton(
-                            onPressed: () => Navigator.pop(context, false),
+                            onPressed: () => Navigator.pop(dialogCtx, false),
                             child: const Text('취소')),
                         TextButton(
-                            onPressed: () => Navigator.pop(context, true),
+                            onPressed: () => Navigator.pop(dialogCtx, true),
                             child: const Text('삭제',
                                 style: TextStyle(color: Colors.red))),
                       ],
                     ),
                   );
-                  if (ok == true) {
+                  if (ok == true && mounted) {
                     await ref
                         .read(hubNotifierProvider.notifier)
                         .deleteLink(item.id);
