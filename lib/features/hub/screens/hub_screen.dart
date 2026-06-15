@@ -171,14 +171,9 @@ class _HubScreenState extends ConsumerState<HubScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final category  = ref.watch(hubCategoryProvider);
-    final links     = ref.watch(filteredLinksProvider);
-    final viewMode  = ref.watch(hubViewModeProvider);
-    final ytKeyword = ref.watch(hubYoutubeKeywordProvider);
-
-    final isYoutube    = category == 'youtube';
-    // 카테고리칩 44 + (유튜브키워드 40) — 검색창 제거
-    final bottomHeight = isYoutube ? 84.0 : 44.0;
+    final category = ref.watch(hubCategoryProvider);
+    final links    = ref.watch(filteredLinksProvider);
+    final viewMode = ref.watch(hubViewModeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -223,68 +218,33 @@ class _HubScreenState extends ConsumerState<HubScreen> {
                 ),
               ],
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(bottomHeight),
-          child: Column(children: [
-            // 카테고리 필터
-            SizedBox(
-              height: 44,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: HubCategory.all_list.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 6),
-                itemBuilder: (_, i) {
-                  final cat = HubCategory.all_list[i];
-                  final selected = category == cat.id;
-                  return FilterChip(
-                    label: Text('${cat.emoji} ${cat.label}'),
-                    selected: selected,
-                    onSelected: (_) {
-                      ref.read(hubCategoryProvider.notifier).state = cat.id;
-                      ref.read(hubYoutubeKeywordProvider.notifier).state = null;
-                    },
-                  );
-                },
-              ),
+          preferredSize: const Size.fromHeight(44),
+          child: SizedBox(
+            height: 44,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: HubCategory.all_list.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 6),
+              itemBuilder: (_, i) {
+                final cat = HubCategory.all_list[i];
+                final selected = category == cat.id;
+                return FilterChip(
+                  label: Text('${cat.emoji} ${cat.label}'),
+                  selected: selected,
+                  onSelected: (_) =>
+                      ref.read(hubCategoryProvider.notifier).state = cat.id,
+                );
+              },
             ),
-            // 유튜브 키워드 서브필터
-            if (isYoutube)
-              SizedBox(
-                height: 40,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-                  itemCount: YoutubeKeyword.all_list.length + 1,
-                  separatorBuilder: (_, __) => const SizedBox(width: 6),
-                  itemBuilder: (_, i) {
-                    if (i == 0) {
-                      return FilterChip(
-                        label: const Text('📋 전체'),
-                        selected: ytKeyword == null,
-                        onSelected: (_) =>
-                            ref.read(hubYoutubeKeywordProvider.notifier).state = null,
-                      );
-                    }
-                    final kw = YoutubeKeyword.all_list[i - 1];
-                    final sel = ytKeyword == kw.id;
-                    return FilterChip(
-                      label: Text('${kw.emoji} ${kw.label}'),
-                      selected: sel,
-                      onSelected: (_) => ref
-                          .read(hubYoutubeKeywordProvider.notifier)
-                          .state = sel ? null : kw.id,
-                    );
-                  },
-                ),
-              ),
-          ]),
+          ),
         ),
       ),
       body: links.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('오류: $e')),
         data: (items) {
-          if (items.isEmpty) return _emptyView(isYoutube && ytKeyword != null);
+          if (items.isEmpty) return _emptyView();
           return viewMode == HubViewMode.grid
               ? _GridBody(items: items, onEdit: _openEditSheet, onDelete: _confirmDelete)
               : _ListBody(items: items, viewMode: viewMode,
@@ -303,14 +263,12 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     );
   }
 
-  Widget _emptyView(bool isKeywordFilter) => Center(
+  Widget _emptyView() => Center(
     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Text(isKeywordFilter ? '🔍' : '🔗', style: const TextStyle(fontSize: 60)),
+      const Text('🔗', style: TextStyle(fontSize: 60)),
       const SizedBox(height: 16),
-      Text(
-        isKeywordFilter ? '이 키워드에 해당하는 링크가 없어요' : '아직 저장된 링크가 없어요',
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      ),
+      const Text('아직 저장된 링크가 없어요',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
       const SizedBox(height: 8),
       Text('유튜브/카카오톡에서 공유 → MyNexus!',
           style: TextStyle(color: Colors.grey[500], fontSize: 13)),
