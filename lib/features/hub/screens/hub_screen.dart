@@ -4,12 +4,42 @@ import '../providers/hub_provider.dart';
 import '../widgets/link_card.dart';
 import '../widgets/add_link_sheet.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../shared/services/share_intent_service.dart';
 
-class HubScreen extends ConsumerWidget {
+class HubScreen extends ConsumerStatefulWidget {
   const HubScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HubScreen> createState() => _HubScreenState();
+}
+
+class _HubScreenState extends ConsumerState<HubScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // 앱 시작 시 공유된 URL 확인 (cold start)
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final url = await ShareIntentService.getSharedText();
+      if (url != null && mounted) _openAddSheet(url);
+    });
+
+    // 앱 실행 중 공유 수신 (warm start)
+    ShareIntentService.listenForSharedText((url) {
+      if (mounted) _openAddSheet(url);
+    });
+  }
+
+  void _openAddSheet(String url) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => AddLinkSheet(initialUrl: url),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final category = ref.watch(hubCategoryProvider);
     final search = ref.watch(hubSearchProvider);
     final links = ref.watch(filteredLinksProvider);
@@ -31,11 +61,13 @@ class HubScreen extends ConsumerWidget {
                     suffixIcon: search.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear, size: 18),
-                            onPressed: () => ref.read(hubSearchProvider.notifier).state = '',
+                            onPressed: () =>
+                                ref.read(hubSearchProvider.notifier).state = '',
                           )
                         : null,
                   ),
-                  onChanged: (v) => ref.read(hubSearchProvider.notifier).state = v,
+                  onChanged: (v) =>
+                      ref.read(hubSearchProvider.notifier).state = v,
                 ),
               ),
               // 카테고리 칩
@@ -74,10 +106,12 @@ class HubScreen extends ConsumerWidget {
                   const Text('🔗', style: TextStyle(fontSize: 60)),
                   const SizedBox(height: 16),
                   const Text('아직 저장된 링크가 없어요',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
-                  Text('아래 + 버튼으로 첫 링크를 추가해보세요!',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                  Text('카카오톡에서 링크 공유 → MyNexus 선택!',
+                      style:
+                          TextStyle(color: Colors.grey[500], fontSize: 13)),
                 ],
               ),
             );
@@ -102,13 +136,20 @@ class HubScreen extends ConsumerWidget {
                       title: const Text('삭제'),
                       content: const Text('이 링크를 삭제할까요?'),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
-                        TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('삭제', style: TextStyle(color: Colors.red))),
+                        TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('취소')),
+                        TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('삭제',
+                                style: TextStyle(color: Colors.red))),
                       ],
                     ),
                   );
                   if (ok == true) {
-                    await ref.read(hubNotifierProvider.notifier).deleteLink(item.id);
+                    await ref
+                        .read(hubNotifierProvider.notifier)
+                        .deleteLink(item.id);
                   }
                 },
               );

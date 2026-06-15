@@ -15,7 +15,10 @@ final currentUserProvider = Provider<User?>((ref) {
 
 class AuthNotifier extends AsyncNotifier<void> {
   final _auth = FirebaseAuth.instance;
-  final _googleSignIn = GoogleSignIn();
+  final _googleSignIn = GoogleSignIn(
+    // google-services.json의 web client id (client_type: 3)
+    serverClientId: '397552928960-1kg2b02o541nof3s0ct06kbiaseb53oh.apps.googleusercontent.com',
+  );
   final _db = FirebaseFirestore.instance;
 
   @override

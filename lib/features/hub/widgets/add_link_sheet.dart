@@ -7,7 +7,8 @@ import '../../../core/constants/app_constants.dart';
 
 class AddLinkSheet extends ConsumerStatefulWidget {
   final LinkItem? editItem;
-  const AddLinkSheet({super.key, this.editItem});
+  final String? initialUrl; // 공유 시트에서 받은 URL
+  const AddLinkSheet({super.key, this.editItem, this.initialUrl});
 
   @override
   ConsumerState<AddLinkSheet> createState() => _AddLinkSheetState();
@@ -35,6 +36,10 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
       _tagsCtrl.text = e.tags.join(', ');
       _category = e.category;
       _fetchedThumb = e.thumbnailUrl;
+    } else if (widget.initialUrl != null) {
+      // 공유 시트에서 URL 받은 경우 자동 입력 + 메타데이터 fetch
+      _urlCtrl.text = widget.initialUrl!;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fetchMetadata());
     }
   }
 
