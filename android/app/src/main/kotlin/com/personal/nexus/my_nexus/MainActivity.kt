@@ -2,6 +2,9 @@ package com.personal.nexus.my_nexus
 
 import android.content.Intent
 import android.os.Bundle
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -14,12 +17,12 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         extractSharedText(intent)
+        registerDirectShareShortcut()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         extractSharedText(intent)
-        // 앱이 이미 실행 중일 때 Flutter로 즉시 전달
         pendingSharedText?.let {
             methodChannel?.invokeMethod("onSharedText", it)
             pendingSharedText = null
@@ -30,6 +33,21 @@ class MainActivity : FlutterActivity() {
         if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
             pendingSharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
         }
+    }
+
+    /** 공유 시트 상단 Direct Share 행에 MyNexus 등록 */
+    private fun registerDirectShareShortcut() {
+        try {
+            val shortcut = ShortcutInfoCompat.Builder(this, "save_to_mynexus")
+                .setShortLabel("DB허브 저장")
+                .setLongLabel("MyNexus DB허브에 저장")
+                .setIcon(IconCompat.createWithResource(this, R.mipmap.ic_launcher))
+                .setIntent(Intent(Intent.ACTION_DEFAULT).setPackage(packageName))
+                .setCategories(setOf("com.personal.nexus.my_nexus.SHARE_TARGET"))
+                .setLongLived(true)
+                .build()
+            ShortcutManagerCompat.pushDynamicShortcut(this, shortcut)
+        } catch (_: Exception) { }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

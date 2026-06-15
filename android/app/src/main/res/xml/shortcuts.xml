@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Direct Share: 공유 시트 상단에 MyNexus 바로 노출 -->
+    <share-target android:targetClass="com.personal.nexus.my_nexus.MainActivity">
+        <data android:mimeType="text/plain"/>
+        <category android:name="com.personal.nexus.my_nexus.SHARE_TARGET"/>
+    </share-target>
+</shortcuts>

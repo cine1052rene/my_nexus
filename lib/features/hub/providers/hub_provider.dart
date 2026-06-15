@@ -74,6 +74,30 @@ class HubNotifier extends Notifier<void> {
     }
   }
 
+  /// 공유 시트에서 빠른 저장 (카테고리/메타데이터 자동 감지 후 즉시 저장)
+  Future<LinkItem?> quickAddLink({
+    required String url,
+    required String title,
+    required String category,
+    String? thumbnailUrl,
+  }) async {
+    try {
+      final item = LinkItem(
+        id: _uuid.v4(),
+        url: url,
+        title: title,
+        category: category,
+        thumbnailUrl: thumbnailUrl,
+        tags: [],
+        createdAt: DateTime.now(),
+      );
+      await _service.addLink(item);
+      return item;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<String?> updateLink(LinkItem item) async {
     try {
       await _service.updateLink(item);
