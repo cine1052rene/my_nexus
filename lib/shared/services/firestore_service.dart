@@ -32,14 +32,23 @@ class FirestoreService {
 
   // ── 링크 허브 CRUD ──────────────────────────────────────────
   Stream<List<LinkItem>> linksStream({String? category}) {
-    Query<Map<String, dynamic>> q =
-        _linksCol.orderBy('createdAt', descending: true);
+    // 카테고리 필터 시 where + orderBy 복합 인덱스 불필요하게 orderBy를 client-side로 처리
+    Query<Map<String, dynamic>> q;
     if (category != null && category != 'all') {
-      q = q.where('category', isEqualTo: category);
+      // 단일 필드 where만 사용 → 복합 인덱스 불필요, 정렬은 client-side
+      q = _linksCol.where('category', isEqualTo: category);
+    } else {
+      // 전체 조회는 orderBy만 → 단일 필드 인덱스 자동 생성됨
+      q = _linksCol.orderBy('createdAt', descending: true);
     }
     return q.snapshots().map((snap) {
       _reads += snap.docs.length;
-      return snap.docs.map((d) => LinkItem.fromFirestore(d)).toList();
+      final items = snap.docs.map((d) => LinkItem.fromFirestore(d)).toList();
+      // 카테고리 필터 시 client-side 최신순 정렬
+      if (category != null && category != 'all') {
+        items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      }
+      return items;
     });
   }
 
