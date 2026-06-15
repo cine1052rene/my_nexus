@@ -19,22 +19,18 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   @override
   void initState() {
     super.initState();
-    // cold start: 앱이 꺼진 상태에서 공유로 실행
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final url = await ShareIntentService.getSharedText();
       if (url != null && mounted) _autoSaveFromShare(url);
     });
-    // warm start: 앱 실행 중 공유 수신
     ShareIntentService.listenForSharedText((url) {
       if (mounted) _autoSaveFromShare(url);
     });
   }
 
-  /// 공유 URL → 카테고리 자동 감지 → 즉시 저장 → SnackBar
+  /// 공유 URL → 카테고리·키워드 자동 감지 → 즉시 저장 → SnackBar
   Future<void> _autoSaveFromShare(String url) async {
     final messenger = ScaffoldMessenger.of(context);
-
-    // 로딩 스낵바
     messenger.showSnackBar(const SnackBar(
       content: Row(children: [
         SizedBox(width: 16, height: 16,
@@ -46,45 +42,39 @@ class _HubScreenState extends ConsumerState<HubScreen> {
       behavior: SnackBarBehavior.floating,
     ));
 
-    // 카테고리 + 메타데이터 감지
     final category = _detectCategory(url);
     String title = _defaultTitle(url, category);
     String? thumbnail;
+    final tags = <String>[];
 
     try {
       if (category == 'youtube') {
         final vid = _extractYoutubeId(url);
         if (vid != null) {
-          title = 'YouTube 영상';
           thumbnail = 'https://img.youtube.com/vi/$vid/maxresdefault.jpg';
-          // OG title 시도
-          final res = await http.get(
-            Uri.parse('https://www.youtube.com/watch?v=$vid'),
-          ).timeout(const Duration(seconds: 5));
+          final res = await http.get(Uri.parse('https://www.youtube.com/watch?v=$vid'))
+              .timeout(const Duration(seconds: 5));
           final m = RegExp(r'"title":"([^"]+)"').firstMatch(res.body);
-          if (m != null) title = m.group(1)!.replaceAll(r'&', '&');
+          if (m != null) title = m.group(1)!.replaceAll(r'&amp;', '&');
+          // 키워드 자동 감지 → 태그로 저장
+          final kw = YoutubeKeyword.detectFromTitle(title);
+          if (kw != null) tags.add(kw.label);
         }
       } else if (category != 'tiktok') {
-        final res = await http.get(Uri.parse(url))
-            .timeout(const Duration(seconds: 5));
-        final titleM = RegExp(
-          r'<title[^>]*>([^<]+)</title>', caseSensitive: false,
-        ).firstMatch(res.body);
+        final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
+        final titleM = RegExp(r'<title[^>]*>([^<]+)</title>',
+            caseSensitive: false).firstMatch(res.body);
         final imgM = RegExp(
-          r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"',
-          caseSensitive: false,
-        ).firstMatch(res.body);
+            r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"',
+            caseSensitive: false).firstMatch(res.body);
         if (titleM != null) title = titleM.group(1)!.trim();
         if (imgM != null) thumbnail = imgM.group(1);
       }
     } catch (_) {}
 
-    // 저장
     final saved = await ref.read(hubNotifierProvider.notifier).quickAddLink(
-      url: url,
-      title: title,
-      category: category,
-      thumbnailUrl: thumbnail,
+      url: url, title: title, category: category,
+      thumbnailUrl: thumbnail, tags: tags,
     );
 
     if (!mounted) return;
@@ -92,41 +82,52 @@ class _HubScreenState extends ConsumerState<HubScreen> {
 
     if (saved == null) {
       messenger.showSnackBar(const SnackBar(
-        content: Text('저장 실패 😢'),
-        backgroundColor: Colors.red,
+        content: Text('저장 실패 😢'), backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
       ));
       return;
     }
-
-    // 성공 스낵바 + 편집 버튼
     messenger.showSnackBar(SnackBar(
       content: Text('${_categoryEmoji(category)} 저장됨: $title'),
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 4),
-      action: SnackBarAction(
-        label: '편집',
-        onPressed: () => _openEditSheet(saved),
-      ),
+      action: SnackBarAction(label: '편집', onPressed: () => _openEditSheet(saved)),
     ));
   }
 
-  void _openEditSheet(LinkItem item) {
-    showModalBottomSheet(
+  void _openEditSheet(LinkItem item) => showModalBottomSheet(
+    context: context, isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => AddLinkSheet(editItem: item),
+  );
+
+  void _confirmDelete(LinkItem item) {
+    showDialog<bool>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => AddLinkSheet(editItem: item),
-    );
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('삭제'),
+        content: const Text('이 링크를 삭제할까요?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: const Text('취소')),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, true),
+              child: const Text('삭제', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    ).then((ok) {
+      if (ok == true && mounted) {
+        ref.read(hubNotifierProvider.notifier).deleteLink(item.id);
+      }
+    });
   }
 
-  // ── 카테고리 자동 감지 ──────────────────────────────────────
+  // ── 카테고리 자동 감지 ──────────────────────────────────────────
   String _detectCategory(String url) {
     if (url.contains('youtube.com') || url.contains('youtu.be')) return 'youtube';
-    if (url.contains('tiktok.com')) return 'tiktok';
+    if (url.contains('tiktok.com'))   return 'tiktok';
     if (url.contains('instagram.com')) return 'instagram';
-    if (url.contains('twitter.com') || url.contains('x.com')) return 'etc';
-    if (url.contains('naver.com') || url.contains('blog.naver')) return 'etc';
     return 'etc';
   }
 
@@ -136,31 +137,52 @@ class _HubScreenState extends ConsumerState<HubScreen> {
 
   String _defaultTitle(String url, String category) {
     if (category == 'youtube') return 'YouTube 영상';
-    if (category == 'tiktok') return 'TikTok 영상';
-    if (category == 'instagram') return 'Instagram';
+    if (category == 'tiktok')  return 'TikTok 영상';
     try { return Uri.parse(url).host; } catch (_) { return url; }
   }
 
-  String _categoryEmoji(String category) {
-    const map = {
-      'youtube': '▶️', 'tiktok': '🎵', 'instagram': '📸',
-      'article': '📄', 'book': '📚', 'etc': '🔗',
-    };
-    return map[category] ?? '🔗';
-  }
+  String _categoryEmoji(String category) => const {
+    'youtube': '▶️', 'tiktok': '🎵', 'instagram': '📸', 'etc': '🔗',
+  }[category] ?? '🔗';
+
+  // ── 뷰모드 아이콘 ────────────────────────────────────────────────
+  IconData _viewModeIcon(HubViewMode m) => switch (m) {
+    HubViewMode.grid    => Icons.grid_view,
+    HubViewMode.compact => Icons.format_list_bulleted,
+    _                   => Icons.view_agenda_outlined,
+  };
 
   @override
   Widget build(BuildContext context) {
-    final category = ref.watch(hubCategoryProvider);
-    final search = ref.watch(hubSearchProvider);
-    final links = ref.watch(filteredLinksProvider);
+    final category  = ref.watch(hubCategoryProvider);
+    final search    = ref.watch(hubSearchProvider);
+    final links     = ref.watch(filteredLinksProvider);
+    final viewMode  = ref.watch(hubViewModeProvider);
+    final ytKeyword = ref.watch(hubYoutubeKeywordProvider);
+
+    final isYoutube     = category == 'youtube';
+    final bottomHeight  = isYoutube ? 140.0 : 100.0;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('📚 DB 허브'),
+        actions: [
+          // 뷰 모드 토글
+          PopupMenuButton<HubViewMode>(
+            icon: Icon(_viewModeIcon(viewMode)),
+            tooltip: '보기 방식',
+            onSelected: (m) => ref.read(hubViewModeProvider.notifier).state = m,
+            itemBuilder: (_) => [
+              _viewMenuItem(HubViewMode.list,    Icons.view_agenda_outlined, '카드 보기'),
+              _viewMenuItem(HubViewMode.grid,    Icons.grid_view,            '그리드 보기'),
+              _viewMenuItem(HubViewMode.compact, Icons.format_list_bulleted, '간략 보기'),
+            ],
+          ),
+        ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(100),
+          preferredSize: Size.fromHeight(bottomHeight),
           child: Column(children: [
+            // 검색창
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: TextField(
@@ -179,6 +201,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
                     ref.read(hubSearchProvider.notifier).state = v,
               ),
             ),
+            // 카테고리 필터
             SizedBox(
               height: 44,
               child: ListView.separated(
@@ -192,12 +215,44 @@ class _HubScreenState extends ConsumerState<HubScreen> {
                   return FilterChip(
                     label: Text('${cat.emoji} ${cat.label}'),
                     selected: selected,
-                    onSelected: (_) =>
-                        ref.read(hubCategoryProvider.notifier).state = cat.id,
+                    onSelected: (_) {
+                      ref.read(hubCategoryProvider.notifier).state = cat.id;
+                      ref.read(hubYoutubeKeywordProvider.notifier).state = null;
+                    },
                   );
                 },
               ),
             ),
+            // 유튜브 키워드 서브필터
+            if (isYoutube)
+              SizedBox(
+                height: 40,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                  itemCount: YoutubeKeyword.all_list.length + 1,
+                  separatorBuilder: (_, __) => const SizedBox(width: 6),
+                  itemBuilder: (_, i) {
+                    if (i == 0) {
+                      return FilterChip(
+                        label: const Text('📋 전체'),
+                        selected: ytKeyword == null,
+                        onSelected: (_) =>
+                            ref.read(hubYoutubeKeywordProvider.notifier).state = null,
+                      );
+                    }
+                    final kw = YoutubeKeyword.all_list[i - 1];
+                    final sel = ytKeyword == kw.id;
+                    return FilterChip(
+                      label: Text('${kw.emoji} ${kw.label}'),
+                      selected: sel,
+                      onSelected: (_) => ref
+                          .read(hubYoutubeKeywordProvider.notifier)
+                          .state = sel ? null : kw.id,
+                    );
+                  },
+                ),
+              ),
           ]),
         ),
       ),
@@ -205,65 +260,16 @@ class _HubScreenState extends ConsumerState<HubScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('오류: $e')),
         data: (items) {
-          if (items.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('🔗', style: TextStyle(fontSize: 60)),
-                  const SizedBox(height: 16),
-                  const Text('아직 저장된 링크가 없어요',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Text('유튜브/카카오톡에서 공유 → MyNexus!',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 13)),
-                ],
-              ),
-            );
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-            itemCount: items.length,
-            itemBuilder: (_, i) {
-              final item = items[i];
-              return LinkCard(
-                item: item,
-                onEdit: () => _openEditSheet(item),
-                onDelete: () async {
-                  final ok = await showDialog<bool>(
-                    context: context,
-                    // ✅ dialogCtx 를 써야 다이얼로그만 닫힘
-                    // context(HubScreen)를 쓰면 ShellRoute 전체가 pop → 블랙화면
-                    builder: (dialogCtx) => AlertDialog(
-                      title: const Text('삭제'),
-                      content: const Text('이 링크를 삭제할까요?'),
-                      actions: [
-                        TextButton(
-                            onPressed: () => Navigator.pop(dialogCtx, false),
-                            child: const Text('취소')),
-                        TextButton(
-                            onPressed: () => Navigator.pop(dialogCtx, true),
-                            child: const Text('삭제',
-                                style: TextStyle(color: Colors.red))),
-                      ],
-                    ),
-                  );
-                  if (ok == true && mounted) {
-                    await ref
-                        .read(hubNotifierProvider.notifier)
-                        .deleteLink(item.id);
-                  }
-                },
-              );
-            },
-          );
+          if (items.isEmpty) return _emptyView(isYoutube && ytKeyword != null);
+          return viewMode == HubViewMode.grid
+              ? _GridBody(items: items, onEdit: _openEditSheet, onDelete: _confirmDelete)
+              : _ListBody(items: items, viewMode: viewMode,
+                          onEdit: _openEditSheet, onDelete: _confirmDelete);
         },
       ),
-      // + 버튼은 수동 추가 시에만 AddLinkSheet 오픈
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
+          context: context, isScrollControlled: true,
           backgroundColor: Colors.transparent,
           builder: (_) => const AddLinkSheet(),
         ),
@@ -272,4 +278,74 @@ class _HubScreenState extends ConsumerState<HubScreen> {
       ),
     );
   }
+
+  Widget _emptyView(bool isKeywordFilter) => Center(
+    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Text(isKeywordFilter ? '🔍' : '🔗', style: const TextStyle(fontSize: 60)),
+      const SizedBox(height: 16),
+      Text(
+        isKeywordFilter ? '이 키워드에 해당하는 링크가 없어요' : '아직 저장된 링크가 없어요',
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      ),
+      const SizedBox(height: 8),
+      Text('유튜브/카카오톡에서 공유 → MyNexus!',
+          style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+    ]),
+  );
+
+  PopupMenuItem<HubViewMode> _viewMenuItem(
+      HubViewMode mode, IconData icon, String label) =>
+      PopupMenuItem(
+        value: mode,
+        child: Row(children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 10),
+          Text(label),
+        ]),
+      );
+}
+
+// ── 바디 위젯 (Scaffold body 분리) ─────────────────────────────
+class _ListBody extends StatelessWidget {
+  final List<LinkItem> items;
+  final HubViewMode viewMode;
+  final void Function(LinkItem) onEdit;
+  final void Function(LinkItem) onDelete;
+  const _ListBody({required this.items, required this.viewMode,
+      required this.onEdit, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) => ListView.builder(
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+    itemCount: items.length,
+    itemBuilder: (_, i) => LinkCard(
+      item: items[i], viewMode: viewMode,
+      onEdit: () => onEdit(items[i]),
+      onDelete: () => onDelete(items[i]),
+    ),
+  );
+}
+
+class _GridBody extends StatelessWidget {
+  final List<LinkItem> items;
+  final void Function(LinkItem) onEdit;
+  final void Function(LinkItem) onDelete;
+  const _GridBody({required this.items, required this.onEdit, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) => GridView.builder(
+    padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 2,
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 10,
+      childAspectRatio: 0.78,
+    ),
+    itemCount: items.length,
+    itemBuilder: (_, i) => LinkCard(
+      item: items[i], viewMode: HubViewMode.grid,
+      onEdit: () => onEdit(items[i]),
+      onDelete: () => onDelete(items[i]),
+    ),
+  );
 }
