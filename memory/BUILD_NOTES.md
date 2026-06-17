@@ -87,6 +87,20 @@
 
 ---
 
+### Build 009
+**커밋:** `9206bca`  
+**내용:**
+- **큐레이션 메뉴**: DB허브 삼점 메뉴에 🎓 큐레이션 추가
+  - Gemini AI가 YouTube/웹페이지 내용 분석 후 핵심 요약 + 키워드 생성
+  - `CurationSheet`: 요약 편집 가능, 마이룸 저장 버튼 → video_clips 컬렉션
+  - YouTube description / og:description / meta description 순으로 내용 추출
+  - #키워드 자동 파싱 → tags 필드에 저장
+- **설정 뒤로가기**: 뒤로가기 시 앱 종료 → 마지막 탭으로 복귀
+  - `lastTabPathProvider` 추가, 탭 전환 시 마지막 경로 기록
+  - `SettingsScreen` PopScope 적용
+
+---
+
 ## 다음 예정 작업
 - PRO 구독 Freemium 과금 설계 (₩4,900 / Google Play Billing)
 - Gmail CASA Tier 2 감사 대응 또는 IMAP OAuth 대안
