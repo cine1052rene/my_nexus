@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -75,7 +76,8 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
           final res = await http.get(
             Uri.parse('https://www.youtube.com/watch?v=$vid'),
           ).timeout(const Duration(seconds: 5));
-          final m = RegExp(r'"title":"([^"]+)"').firstMatch(res.body);
+          final ytBody = utf8.decode(res.bodyBytes, allowMalformed: true);
+          final m = RegExp(r'"title":"([^"]+)"').firstMatch(ytBody);
           if (m != null) {
             final ytTitle = m.group(1)!
                 .replaceAll(r'&amp;', '&')
@@ -99,7 +101,7 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
 
       // OG 태그 파싱
       final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
-      final body = res.body;
+      final body = utf8.decode(res.bodyBytes, allowMalformed: true);
       final titleM = RegExp(r'<title[^>]*>([^<]+)</title>',
           caseSensitive: false).firstMatch(body);
       final imgM   = RegExp(

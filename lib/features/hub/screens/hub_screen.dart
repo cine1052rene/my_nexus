@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -77,11 +78,11 @@ class _HubScreenState extends ConsumerState<HubScreen> {
       return;
     }
 
-    // ② 저장 완료 즉시 알림
+    // ② 저장 완료 즉시 알림 (2초 후 자동 닫힘, 터치 시 즉시 닫힘)
     messenger.showSnackBar(SnackBar(
       content: Text('${_categoryEmoji(category)} 저장됨: $title'),
       behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 4),
+      duration: const Duration(seconds: 2),
       action: SnackBarAction(label: '편집', onPressed: () => _openEditSheet(saved)),
     ));
 
@@ -102,7 +103,8 @@ class _HubScreenState extends ConsumerState<HubScreen> {
         if (vid != null) {
           final res = await http.get(Uri.parse('https://www.youtube.com/watch?v=$vid'))
               .timeout(const Duration(seconds: 5));
-          final m = RegExp(r'"title":"([^"]+)"').firstMatch(res.body);
+          final body = utf8.decode(res.bodyBytes, allowMalformed: true);
+          final m = RegExp(r'"title":"([^"]+)"').firstMatch(body);
           if (m != null) {
             newTitle = m.group(1)!.replaceAll(r'&amp;', '&');
             final kw = YoutubeKeyword.detectFromTitle(newTitle);
@@ -115,11 +117,12 @@ class _HubScreenState extends ConsumerState<HubScreen> {
         // 인스타·트위터는 HTTP 차단 → 스킵
         final res = await http.get(Uri.parse(url))
             .timeout(const Duration(seconds: 5));
+        final body = utf8.decode(res.bodyBytes, allowMalformed: true);
         final titleM = RegExp(r'<title[^>]*>([^<]+)</title>',
-            caseSensitive: false).firstMatch(res.body);
+            caseSensitive: false).firstMatch(body);
         final imgM = RegExp(
             r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"',
-            caseSensitive: false).firstMatch(res.body);
+            caseSensitive: false).firstMatch(body);
         if (titleM != null) newTitle = titleM.group(1)!.trim();
         if (imgM != null) newThumb = imgM.group(1);
       }
@@ -268,16 +271,22 @@ class _HubScreenState extends ConsumerState<HubScreen> {
           ),
         ),
       ),
-      body: links.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
-        data: (items) {
-          if (items.isEmpty) return _emptyView();
-          return viewMode == HubViewMode.grid
-              ? _GridBody(items: items, onEdit: _openEditSheet, onDelete: _confirmDelete)
-              : _ListBody(items: items, viewMode: viewMode,
-                          onEdit: _openEditSheet, onDelete: _confirmDelete);
-        },
+      body: Listener(
+        // 화면 어디 터치해도 스낵바 즉시 닫힘
+        onPointerDown: (_) =>
+            ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+        behavior: HitTestBehavior.translucent,
+        child: links.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('오류: $e')),
+          data: (items) {
+            if (items.isEmpty) return _emptyView();
+            return viewMode == HubViewMode.grid
+                ? _GridBody(items: items, onEdit: _openEditSheet, onDelete: _confirmDelete)
+                : _ListBody(items: items, viewMode: viewMode,
+                            onEdit: _openEditSheet, onDelete: _confirmDelete);
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showModalBottomSheet(
