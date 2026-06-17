@@ -9,7 +9,9 @@ import '../../myroom/providers/myroom_provider.dart';
 
 class CurationSheet extends ConsumerStatefulWidget {
   final LinkItem item;
-  const CurationSheet({super.key, required this.item});
+  /// 저장 성공 시 부모(HubScreen)에서 스낵바 표시용 콜백
+  final VoidCallback? onSaved;
+  const CurationSheet({super.key, required this.item, this.onSaved});
 
   @override
   ConsumerState<CurationSheet> createState() => _CurationSheetState();
@@ -148,23 +150,20 @@ ${widget.item.url}
 
     if (!mounted) return;
 
-    // pop 전에 messenger 캡처 (pop 후 context 무효화 방지)
-    final messenger = ScaffoldMessenger.of(context);
-    Navigator.pop(context);
+    if (err != null) {
+      // 실패는 시트 안에서 바로 표시
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('저장 실패: $err'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ));
+      return;
+    }
 
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(err == null
-        ? const SnackBar(
-            content: Text('📚 마이룸에 저장됐어요!'),
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 2),
-          )
-        : SnackBar(
-            content: Text('저장 실패: $err'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            duration: Duration(seconds: 3),
-          ));
+    // 성공: 시트 닫고 → 부모 콜백으로 스낵바 표시 (context 무효화 방지)
+    Navigator.pop(context);
+    widget.onSaved?.call();
   }
 
   // ── UI ────────────────────────────────────────────────────────

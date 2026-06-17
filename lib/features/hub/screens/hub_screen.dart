@@ -154,7 +154,19 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   void _openCurationSheet(LinkItem item) => showModalBottomSheet(
     context: context, isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => CurationSheet(item: item),
+    builder: (_) => CurationSheet(
+      item: item,
+      // 부모 context(HubScreen)에서 스낵바 표시 → context 항상 유효
+      onSaved: () {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(
+            content: Text('📚 마이룸에 저장됐어요!'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ));
+      },
+    ),
   );
 
   void _confirmDelete(LinkItem item) {
@@ -279,16 +291,31 @@ class _HubScreenState extends ConsumerState<HubScreen> {
           ),
         ),
       ),
-      body: links.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('오류: $e')),
-        data: (items) {
-          if (items.isEmpty) return _emptyView();
-          return viewMode == HubViewMode.grid
-              ? _GridBody(items: items, onEdit: _openEditSheet, onDelete: _confirmDelete, onCurate: _openCurationSheet)
-              : _ListBody(items: items, viewMode: viewMode,
-                          onEdit: _openEditSheet, onDelete: _confirmDelete, onCurate: _openCurationSheet);
-        },
+      body: Listener(
+        // 화면 어디 터치해도 스낵바 즉시 닫힘
+        // (PopupMenu의 모달 배리어가 위에 있으므로 팝업 열려 있을 때는 발동 안 함)
+        onPointerDown: (_) =>
+            ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+        behavior: HitTestBehavior.translucent,
+        child: NotificationListener<ScrollStartNotification>(
+          // 스크롤 시작 → 팝업 메뉴 닫힘 + 스낵바 닫힘
+          onNotification: (_) {
+            Navigator.of(context).maybePop();
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            return false;
+          },
+          child: links.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('오류: $e')),
+            data: (items) {
+              if (items.isEmpty) return _emptyView();
+              return viewMode == HubViewMode.grid
+                  ? _GridBody(items: items, onEdit: _openEditSheet, onDelete: _confirmDelete, onCurate: _openCurationSheet)
+                  : _ListBody(items: items, viewMode: viewMode,
+                              onEdit: _openEditSheet, onDelete: _confirmDelete, onCurate: _openCurationSheet);
+            },
+          ),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showModalBottomSheet(
