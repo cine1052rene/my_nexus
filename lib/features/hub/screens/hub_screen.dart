@@ -278,22 +278,16 @@ class _HubScreenState extends ConsumerState<HubScreen> {
           ),
         ),
       ),
-      body: Listener(
-        // 화면 어디 터치해도 스낵바 즉시 닫힘
-        onPointerDown: (_) =>
-            ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-        behavior: HitTestBehavior.translucent,
-        child: links.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('오류: $e')),
-          data: (items) {
-            if (items.isEmpty) return _emptyView();
-            return viewMode == HubViewMode.grid
-                ? _GridBody(items: items, onEdit: _openEditSheet, onDelete: _confirmDelete, onCurate: _openCurationSheet)
-                : _ListBody(items: items, viewMode: viewMode,
-                            onEdit: _openEditSheet, onDelete: _confirmDelete, onCurate: _openCurationSheet);
-          },
-        ),
+      body: links.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('오류: $e')),
+        data: (items) {
+          if (items.isEmpty) return _emptyView();
+          return viewMode == HubViewMode.grid
+              ? _GridBody(items: items, onEdit: _openEditSheet, onDelete: _confirmDelete, onCurate: _openCurationSheet)
+              : _ListBody(items: items, viewMode: viewMode,
+                          onEdit: _openEditSheet, onDelete: _confirmDelete, onCurate: _openCurationSheet);
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showModalBottomSheet(

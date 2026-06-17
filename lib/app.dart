@@ -92,7 +92,17 @@ class MainShell extends ConsumerWidget {
     );
     if (currentIndex < 0) currentIndex = 0;
 
-    return Scaffold(
+    final isSettings = location.startsWith('/settings');
+
+    return PopScope(
+      // 설정 탭에서만 뒤로가기 차단 → lastTab으로 복귀
+      canPop: !isSettings,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && isSettings) {
+          context.go(ref.read(lastTabPathProvider));
+        }
+      },
+      child: Scaffold(
       body: child,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
@@ -118,6 +128,7 @@ class MainShell extends ConsumerWidget {
               .toList(),
         ),
       ),
-    );
+      ), // Scaffold
+    ); // PopScope
   }
 }
