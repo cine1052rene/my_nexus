@@ -47,56 +47,27 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     ref.read(hubSearchProvider.notifier).state = '';
   }
 
-  /// 공유 URL → 카테고리·키워드 자동 감지 → 즉시 저장 → SnackBar
+  /// 공유 URL → 즉시 저장 → SnackBar → 백그라운드 메타데이터 업데이트
   Future<void> _autoSaveFromShare(String url) async {
     final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(const SnackBar(
-      content: Row(children: [
-        SizedBox(width: 16, height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-        SizedBox(width: 12),
-        Text('저장 중...'),
-      ]),
-      duration: Duration(seconds: 30),
-      behavior: SnackBarBehavior.floating,
-    ));
-
-    final category = _detectCategory(url);
-    String title = _defaultTitle(url, category);
+    final category  = _detectCategory(url);
+    String  title     = _defaultTitle(url, category);
     String? thumbnail;
-    final tags = <String>[];
 
-    try {
-      if (category == 'youtube') {
-        final vid = _extractYoutubeId(url);
-        if (vid != null) {
-          thumbnail = 'https://img.youtube.com/vi/$vid/maxresdefault.jpg';
-          final res = await http.get(Uri.parse('https://www.youtube.com/watch?v=$vid'))
-              .timeout(const Duration(seconds: 5));
-          final m = RegExp(r'"title":"([^"]+)"').firstMatch(res.body);
-          if (m != null) title = m.group(1)!.replaceAll(r'&amp;', '&');
-          final kw = YoutubeKeyword.detectFromTitle(title);
-          if (kw != null) tags.add(kw.label);
-        }
-      } else if (category != 'tiktok') {
-        final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
-        final titleM = RegExp(r'<title[^>]*>([^<]+)</title>',
-            caseSensitive: false).firstMatch(res.body);
-        final imgM = RegExp(
-            r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"',
-            caseSensitive: false).firstMatch(res.body);
-        if (titleM != null) title = titleM.group(1)!.trim();
-        if (imgM != null) thumbnail = imgM.group(1);
+    // YouTube 썸네일은 HTTP 없이 URL에서 즉시 추출
+    if (category == 'youtube') {
+      final vid = _extractYoutubeId(url);
+      if (vid != null) {
+        thumbnail = 'https://img.youtube.com/vi/$vid/maxresdefault.jpg';
       }
-    } catch (_) {}
+    }
 
+    // ① 즉시 Firestore 저장 (기본 제목으로)
     final saved = await ref.read(hubNotifierProvider.notifier).quickAddLink(
-      url: url, title: title, category: category,
-      thumbnailUrl: thumbnail, tags: tags,
+      url: url, title: title, category: category, thumbnailUrl: thumbnail,
     );
 
     if (!mounted) return;
-    messenger.hideCurrentSnackBar();
 
     if (saved == null) {
       messenger.showSnackBar(const SnackBar(
@@ -105,12 +76,68 @@ class _HubScreenState extends ConsumerState<HubScreen> {
       ));
       return;
     }
+
+    // ② 저장 완료 즉시 알림
     messenger.showSnackBar(SnackBar(
       content: Text('${_categoryEmoji(category)} 저장됨: $title'),
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 4),
       action: SnackBarAction(label: '편집', onPressed: () => _openEditSheet(saved)),
     ));
+
+    // ③ 백그라운드에서 메타데이터 가져와 조용히 업데이트
+    _updateMetadataInBackground(saved, url, category);
+  }
+
+  /// 백그라운드 메타데이터 업데이트 (저장 후 호출, 실패해도 무시)
+  Future<void> _updateMetadataInBackground(
+      LinkItem saved, String url, String category) async {
+    try {
+      String? newTitle;
+      String? newThumb = saved.thumbnailUrl;
+      final newTags = List<String>.from(saved.tags);
+
+      if (category == 'youtube') {
+        final vid = _extractYoutubeId(url);
+        if (vid != null) {
+          final res = await http.get(Uri.parse('https://www.youtube.com/watch?v=$vid'))
+              .timeout(const Duration(seconds: 5));
+          final m = RegExp(r'"title":"([^"]+)"').firstMatch(res.body);
+          if (m != null) {
+            newTitle = m.group(1)!.replaceAll(r'&amp;', '&');
+            final kw = YoutubeKeyword.detectFromTitle(newTitle);
+            if (kw != null && !newTags.contains(kw.label)) newTags.add(kw.label);
+          }
+        }
+      } else if (category != 'tiktok' &&
+                 category != 'instagram' &&
+                 category != 'twitter') {
+        // 인스타·트위터는 HTTP 차단 → 스킵
+        final res = await http.get(Uri.parse(url))
+            .timeout(const Duration(seconds: 5));
+        final titleM = RegExp(r'<title[^>]*>([^<]+)</title>',
+            caseSensitive: false).firstMatch(res.body);
+        final imgM = RegExp(
+            r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"',
+            caseSensitive: false).firstMatch(res.body);
+        if (titleM != null) newTitle = titleM.group(1)!.trim();
+        if (imgM != null) newThumb = imgM.group(1);
+      }
+
+      // 변경된 경우만 업데이트
+      final changed = (newTitle != null && newTitle != saved.title) ||
+          newThumb != saved.thumbnailUrl ||
+          newTags.length != saved.tags.length;
+      if (!changed) return;
+
+      await ref.read(hubNotifierProvider.notifier).updateLink(saved.copyWith(
+        title:        newTitle ?? saved.title,
+        thumbnailUrl: newThumb,
+        tags:         newTags,
+      ));
+    } catch (_) {
+      // 메타데이터 업데이트 실패 → 기본 제목으로 이미 저장됐으니 무시
+    }
   }
 
   void _openEditSheet(LinkItem item) => showModalBottomSheet(
