@@ -100,7 +100,14 @@ class MainShell extends ConsumerWidget {
         ),
         child: BottomNavigationBar(
           currentIndex: currentIndex,
-          onTap: (i) => context.go(visibleTabs[i].path),
+          onTap: (i) {
+              final path = visibleTabs[i].path;
+              // 설정 이외의 탭 → lastTab 기록
+              if (path != '/settings') {
+                ref.read(lastTabPathProvider.notifier).state = path;
+              }
+              context.go(path);
+            },
           type: BottomNavigationBarType.fixed,
           items: visibleTabs
               .map((t) => BottomNavigationBarItem(

@@ -6,6 +6,7 @@ import '../models/link_item.dart';
 import '../providers/hub_provider.dart';
 import '../widgets/link_card.dart';
 import '../widgets/add_link_sheet.dart';
+import '../widgets/curation_sheet.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../shared/services/share_intent_service.dart';
 
@@ -149,6 +150,12 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     builder: (_) => AddLinkSheet(editItem: item),
   );
 
+  void _openCurationSheet(LinkItem item) => showModalBottomSheet(
+    context: context, isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => CurationSheet(item: item),
+  );
+
   void _confirmDelete(LinkItem item) {
     showDialog<bool>(
       context: context,
@@ -282,9 +289,9 @@ class _HubScreenState extends ConsumerState<HubScreen> {
           data: (items) {
             if (items.isEmpty) return _emptyView();
             return viewMode == HubViewMode.grid
-                ? _GridBody(items: items, onEdit: _openEditSheet, onDelete: _confirmDelete)
+                ? _GridBody(items: items, onEdit: _openEditSheet, onDelete: _confirmDelete, onCurate: _openCurationSheet)
                 : _ListBody(items: items, viewMode: viewMode,
-                            onEdit: _openEditSheet, onDelete: _confirmDelete);
+                            onEdit: _openEditSheet, onDelete: _confirmDelete, onCurate: _openCurationSheet);
           },
         ),
       ),
@@ -330,8 +337,9 @@ class _ListBody extends StatelessWidget {
   final HubViewMode viewMode;
   final void Function(LinkItem) onEdit;
   final void Function(LinkItem) onDelete;
+  final void Function(LinkItem) onCurate;
   const _ListBody({required this.items, required this.viewMode,
-      required this.onEdit, required this.onDelete});
+      required this.onEdit, required this.onDelete, required this.onCurate});
 
   @override
   Widget build(BuildContext context) => ListView.builder(
@@ -339,8 +347,9 @@ class _ListBody extends StatelessWidget {
     itemCount: items.length,
     itemBuilder: (_, i) => LinkCard(
       item: items[i], viewMode: viewMode,
-      onEdit: () => onEdit(items[i]),
+      onEdit:   () => onEdit(items[i]),
       onDelete: () => onDelete(items[i]),
+      onCurate: () => onCurate(items[i]),
     ),
   );
 }
@@ -349,7 +358,9 @@ class _GridBody extends StatelessWidget {
   final List<LinkItem> items;
   final void Function(LinkItem) onEdit;
   final void Function(LinkItem) onDelete;
-  const _GridBody({required this.items, required this.onEdit, required this.onDelete});
+  final void Function(LinkItem) onCurate;
+  const _GridBody({required this.items, required this.onEdit,
+      required this.onDelete, required this.onCurate});
 
   @override
   Widget build(BuildContext context) => GridView.builder(
@@ -363,8 +374,9 @@ class _GridBody extends StatelessWidget {
     itemCount: items.length,
     itemBuilder: (_, i) => LinkCard(
       item: items[i], viewMode: HubViewMode.grid,
-      onEdit: () => onEdit(items[i]),
+      onEdit:   () => onEdit(items[i]),
       onDelete: () => onDelete(items[i]),
+      onCurate: () => onCurate(items[i]),
     ),
   );
 }

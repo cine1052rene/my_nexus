@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/settings_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../shared/services/firestore_service.dart';
@@ -40,7 +41,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final tabFeatures = ref.watch(tabFeaturesProvider);
     final featureMap = tabFeatures.valueOrNull ?? {};
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          final last = ref.read(lastTabPathProvider);
+          context.go(last);
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(title: const Text('⚙️ 설정')),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -308,7 +317,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
       ),
-    );
+      ), // Scaffold
+    ); // PopScope
   }
 
   Widget? _tabSubtitle(String tabId) {

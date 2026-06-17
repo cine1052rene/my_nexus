@@ -66,3 +66,6 @@ final tabFeaturesProvider =
     AsyncNotifierProvider<TabFeaturesNotifier, Map<String, bool>>(
   TabFeaturesNotifier.new,
 );
+
+// ── 마지막으로 본 탭 경로 (설정 뒤로가기 복귀용) ──────────────────
+final lastTabPathProvider = StateProvider<String>((ref) => '/hub');
