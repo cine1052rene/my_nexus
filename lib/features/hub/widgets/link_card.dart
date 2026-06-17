@@ -301,7 +301,7 @@ class _Placeholder extends StatelessWidget {
   );
 }
 
-// ── 공통 팝업 메뉴 ─────────────────────────────────────────────────
+// ── 공통 액션 메뉴 (BottomSheet — 스크롤 차단 없음) ──────────────────
 class _Menu extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -315,18 +315,47 @@ class _Menu extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => PopupMenuButton<String>(
+  Widget build(BuildContext context) => IconButton(
+    icon: const Icon(Icons.more_vert),
     iconSize: iconSize,
     padding: EdgeInsets.zero,
-    onSelected: (v) {
-      if (v == 'edit')    onEdit();
-      if (v == 'delete')  onDelete();
-      if (v == 'curate')  onCurate();
-    },
-    itemBuilder: (_) => [
-      const PopupMenuItem(value: 'curate', child: Text('🎓 큐레이션')),
-      const PopupMenuItem(value: 'edit',   child: Text('✏️ 수정')),
-      const PopupMenuItem(value: 'delete', child: Text('🗑️ 삭제')),
-    ],
+    constraints: const BoxConstraints(),
+    onPressed: () => showModalBottomSheet(
+      context: context,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 핸들
+            Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 4),
+              width: 36, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading: const Text('🎓', style: TextStyle(fontSize: 20)),
+              title: const Text('큐레이션'),
+              onTap: () { Navigator.pop(sheetCtx); onCurate(); },
+            ),
+            ListTile(
+              leading: const Text('✏️', style: TextStyle(fontSize: 20)),
+              title: const Text('수정'),
+              onTap: () { Navigator.pop(sheetCtx); onEdit(); },
+            ),
+            ListTile(
+              leading: const Text('🗑️', style: TextStyle(fontSize: 20)),
+              title: const Text('삭제'),
+              textColor: Colors.red,
+              iconColor: Colors.red,
+              onTap: () { Navigator.pop(sheetCtx); onDelete(); },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    ),
   );
 }

@@ -147,9 +147,13 @@ ${widget.item.url}
     );
 
     if (!mounted) return;
+
+    // pop 전에 messenger 캡처 (pop 후 context 무효화 방지)
+    final messenger = ScaffoldMessenger.of(context);
     Navigator.pop(context);
 
-    ScaffoldMessenger.of(context).showSnackBar(err == null
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(err == null
         ? const SnackBar(
             content: Text('📚 마이룸에 저장됐어요!'),
             behavior: SnackBarBehavior.floating,
@@ -159,6 +163,7 @@ ${widget.item.url}
             content: Text('저장 실패: $err'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
           ));
   }
 

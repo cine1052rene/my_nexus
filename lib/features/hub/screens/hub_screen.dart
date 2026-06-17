@@ -79,7 +79,8 @@ class _HubScreenState extends ConsumerState<HubScreen> {
       return;
     }
 
-    // ② 저장 완료 즉시 알림 (2초 후 자동 닫힘, 터치 시 즉시 닫힘)
+    // ② 저장 완료 즉시 알림
+    messenger.hideCurrentSnackBar();
     messenger.showSnackBar(SnackBar(
       content: Text('${_categoryEmoji(category)} 저장됨: $title'),
       behavior: SnackBarBehavior.floating,
