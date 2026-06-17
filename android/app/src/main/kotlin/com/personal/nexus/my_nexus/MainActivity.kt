@@ -22,6 +22,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)  // singleTask: 새 인텐트로 교체
         extractSharedText(intent)
         pendingSharedText?.let {
             methodChannel?.invokeMethod("onSharedText", it)
