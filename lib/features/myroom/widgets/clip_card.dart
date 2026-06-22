@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/video_clip.dart';
+import 'clip_detail_sheet.dart';
 
 class ClipCard extends StatelessWidget {
   final VideoClip clip;
@@ -16,10 +17,32 @@ class ClipCard extends StatelessWidget {
   });
 
   Future<void> _open() async {
-    final uri = Uri.parse(clip.url);
-    if (await canLaunchUrl(uri)) {
+    final uri = Uri.tryParse(clip.url);
+    if (uri != null && await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  /// note가 있으면 상세 시트, 없으면 URL 바로 열기
+  void _handleTap(BuildContext context) {
+    if (clip.note != null && clip.note!.isNotEmpty) {
+      _showDetailSheet(context);
+    } else {
+      _open();
+    }
+  }
+
+  void _showDetailSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ClipDetailSheet(
+        clip: clip,
+        onEdit: onEdit,
+        onDelete: onDelete,
+      ),
+    );
   }
 
   void _showOptions(BuildContext context) {
@@ -68,7 +91,7 @@ class ClipCard extends StatelessWidget {
     final platformColor = Color(clip.platform.colorValue);
 
     return GestureDetector(
-      onTap: _open,
+      onTap: () => _handleTap(context),
       onLongPress: () => _showOptions(context),
       child: Card(
         clipBehavior: Clip.antiAlias,
@@ -80,14 +103,34 @@ class ClipCard extends StatelessWidget {
             // ── 썸네일 ──
             AspectRatio(
               aspectRatio: 16 / 9,
-              child: clip.thumbUrl.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: clip.thumbUrl,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) =>
-                          _PlatformPlaceholder(platform: clip.platform),
-                    )
-                  : _PlatformPlaceholder(platform: clip.platform),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: clip.thumbUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: clip.thumbUrl,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) =>
+                                _PlatformPlaceholder(platform: clip.platform),
+                          )
+                        : _PlatformPlaceholder(platform: clip.platform),
+                  ),
+                  // 📝 인디케이터: note가 있는 클립임을 표시
+                  if (clip.note != null && clip.note!.isNotEmpty)
+                    Positioned(
+                      top: 6, right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6C63FF),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text('📝',
+                            style: TextStyle(fontSize: 10)),
+                      ),
+                    ),
+                ],
+              ),
             ),
             // ── 정보 ──
             Padding(

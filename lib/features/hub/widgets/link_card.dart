@@ -10,6 +10,7 @@ class LinkCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onCurate;
+  final VoidCallback onContext;
   final HubViewMode viewMode;
 
   const LinkCard({
@@ -18,15 +19,16 @@ class LinkCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onCurate,
+    required this.onContext,
     this.viewMode = HubViewMode.list,
   });
 
   @override
   Widget build(BuildContext context) {
     return switch (viewMode) {
-      HubViewMode.grid    => _GridCard(item: item, onEdit: onEdit, onDelete: onDelete, onCurate: onCurate),
-      HubViewMode.compact => _CompactRow(item: item, onEdit: onEdit, onDelete: onDelete, onCurate: onCurate),
-      _                   => _ListCard(item: item, onEdit: onEdit, onDelete: onDelete, onCurate: onCurate),
+      HubViewMode.grid    => _GridCard(item: item, onEdit: onEdit, onDelete: onDelete, onCurate: onCurate, onContext: onContext),
+      HubViewMode.compact => _CompactRow(item: item, onEdit: onEdit, onDelete: onDelete, onCurate: onCurate, onContext: onContext),
+      _                   => _ListCard(item: item, onEdit: onEdit, onDelete: onDelete, onCurate: onCurate, onContext: onContext),
     };
   }
 }
@@ -37,7 +39,8 @@ class _ListCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onCurate;
-  const _ListCard({required this.item, required this.onEdit, required this.onDelete, required this.onCurate});
+  final VoidCallback onContext;
+  const _ListCard({required this.item, required this.onEdit, required this.onDelete, required this.onCurate, required this.onContext});
 
   String _domain() {
     try { return Uri.parse(item.url).host.replaceFirst('www.', ''); }
@@ -109,7 +112,7 @@ class _ListCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         _SourceIcon(category: item.category),
-                        _Menu(onEdit: onEdit, onDelete: onDelete, onCurate: onCurate, iconSize: 16),
+                        _Menu(onEdit: onEdit, onDelete: onDelete, onCurate: onCurate, onContext: onContext, iconSize: 16),
                       ],
                     ),
                   ],
@@ -136,7 +139,8 @@ class _GridCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onCurate;
-  const _GridCard({required this.item, required this.onEdit, required this.onDelete, required this.onCurate});
+  final VoidCallback onContext;
+  const _GridCard({required this.item, required this.onEdit, required this.onDelete, required this.onCurate, required this.onContext});
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +175,7 @@ class _GridCard extends StatelessWidget {
                           fontSize: 10, color: Color(0xFF6C63FF),
                           fontWeight: FontWeight.w600)),
                 ),
-                _Menu(onEdit: onEdit, onDelete: onDelete, onCurate: onCurate, iconSize: 16),
+                _Menu(onEdit: onEdit, onDelete: onDelete, onCurate: onCurate, onContext: onContext, iconSize: 16),
               ]),
               const SizedBox(height: 4),
               Text(item.title,
@@ -191,7 +195,8 @@ class _CompactRow extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onCurate;
-  const _CompactRow({required this.item, required this.onEdit, required this.onDelete, required this.onCurate});
+  final VoidCallback onContext;
+  const _CompactRow({required this.item, required this.onEdit, required this.onDelete, required this.onCurate, required this.onContext});
 
   String _domain(String url) {
     try { return Uri.parse(url).host.replaceFirst('www.', ''); }
@@ -222,7 +227,7 @@ class _CompactRow extends StatelessWidget {
                   style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
             ])),
-            _Menu(onEdit: onEdit, onDelete: onDelete, onCurate: onCurate, iconSize: 16),
+            _Menu(onEdit: onEdit, onDelete: onDelete, onCurate: onCurate, onContext: onContext, iconSize: 16),
           ]),
         ),
       ),
@@ -306,11 +311,13 @@ class _Menu extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onCurate;
+  final VoidCallback onContext;
   final double iconSize;
   const _Menu({
     required this.onEdit,
     required this.onDelete,
     required this.onCurate,
+    required this.onContext,
     this.iconSize = 18,
   });
 
@@ -319,14 +326,16 @@ class _Menu extends StatelessWidget {
     iconSize: iconSize,
     padding: EdgeInsets.zero,
     onSelected: (v) {
-      if (v == 'edit')   onEdit();
-      if (v == 'delete') onDelete();
-      if (v == 'curate') onCurate();
+      if (v == 'curate')  onCurate();
+      if (v == 'context') onContext();
+      if (v == 'edit')    onEdit();
+      if (v == 'delete')  onDelete();
     },
     itemBuilder: (_) => [
-      const PopupMenuItem(value: 'curate', child: Text('🎓 큐레이션')),
-      const PopupMenuItem(value: 'edit',   child: Text('✏️ 수정')),
-      const PopupMenuItem(value: 'delete', child: Text('🗑️ 삭제')),
+      const PopupMenuItem(value: 'context', child: Text('📝 컨텍스트 정리')),
+      const PopupMenuItem(value: 'curate',  child: Text('🎓 큐레이션')),
+      const PopupMenuItem(value: 'edit',    child: Text('✏️ 수정')),
+      const PopupMenuItem(value: 'delete',  child: Text('🗑️ 삭제')),
     ],
   );
 }
