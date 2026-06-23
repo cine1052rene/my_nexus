@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../.././../core/constants/tab_defs.dart';
 
 // ── Gemini API 키 ─────────────────────────────────────────────
@@ -69,3 +71,14 @@ final tabFeaturesProvider =
 
 // ── 마지막으로 본 탭 경로 (설정 뒤로가기 복귀용) ──────────────────
 final lastTabPathProvider = StateProvider<String>((ref) => '/hub');
+
+// ── 프리미엄 상태 (Firestore users/{uid}.isPremium) ───────────────
+/// 구독 결제 완료 시 Firestore에 isPremium: true 기록 → 자동 감지
+final isPremiumProvider = StreamProvider<bool>((ref) {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return Stream.value(false);
+  return FirebaseFirestore.instance
+      .doc('users/${user.uid}')
+      .snapshots()
+      .map((doc) => (doc.data()?['isPremium'] as bool?) ?? false);
+});

@@ -1,15 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:http/http.dart' as http;
 import '../models/link_item.dart';
-import '../../settings/providers/settings_provider.dart';
 import '../../myroom/providers/myroom_provider.dart';
+import '../../../shared/services/gemini_service.dart';
 
 class CurationSheet extends ConsumerStatefulWidget {
   final LinkItem item;
-  /// 저장 성공 시 부모(HubScreen)에서 스낵바 표시용 콜백
   final VoidCallback? onSaved;
   const CurationSheet({super.key, required this.item, this.onSaved});
 
@@ -39,21 +37,9 @@ class _CurationSheetState extends ConsumerState<CurationSheet> {
 
   // ── AI 큐레이션 ────────────────────────────────────────────────
   Future<void> _curate() async {
-    final apiKey = ref.read(geminiApiKeyProvider).valueOrNull ?? '';
-    if (apiKey.isEmpty) {
-      setState(() {
-        _error  = 'Gemini API 키가 설정되지 않았어요.\n설정 탭에서 먼저 키를 입력해주세요.';
-        _loading = false;
-      });
-      return;
-    }
-
     try {
       final description = await _fetchDescription();
-      final model       = GenerativeModel(model: 'gemini-2.5-flash', apiKey: apiKey);
-      final prompt      = _buildPrompt(description);
-      final response    = await model.generateContent([Content.text(prompt)]);
-      final summary     = response.text?.trim() ?? '요약을 생성하지 못했어요.';
+      final summary = await GeminiService.generate(_buildPrompt(description));
 
       if (!mounted) return;
       setState(() {
@@ -66,7 +52,7 @@ class _CurationSheetState extends ConsumerState<CurationSheet> {
     }
   }
 
-  /// URL에서 설명 텍스트 추출 (YouTube description / OG:description / meta description)
+  /// URL에서 설명 텍스트 추출
   Future<String> _fetchDescription() async {
     try {
       final url = widget.item.url;
@@ -77,8 +63,7 @@ class _CurationSheetState extends ConsumerState<CurationSheet> {
           final res  = await http.get(Uri.parse('https://www.youtube.com/watch?v=$vid'))
               .timeout(const Duration(seconds: 8));
           final body = utf8.decode(res.bodyBytes, allowMalformed: true);
-          // shortDescription JSON 파싱
-          final m = RegExp(r'"shortDescription":"((?:[^"\\]|\\.)*)\"')
+          final m = RegExp(r'"shortDescription":"((?:[^"\\]|\\.)*)"')
               .firstMatch(body);
           if (m != null) {
             return m.group(1)!
@@ -91,12 +76,10 @@ class _CurationSheetState extends ConsumerState<CurationSheet> {
       } else {
         final res  = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
         final body = utf8.decode(res.bodyBytes, allowMalformed: true);
-        // og:description 우선
         final og = RegExp(
             r"""<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)""",
             caseSensitive: false).firstMatch(body);
         if (og != null) return og.group(1)!;
-        // fallback: name="description"
         final desc = RegExp(
             r"""<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)""",
             caseSensitive: false).firstMatch(body);
@@ -134,7 +117,6 @@ ${widget.item.url}
         ? widget.item.title
         : _titleCtrl.text.trim();
 
-    // 키워드 태그 추출 (#태그 파싱)
     final tags = RegExp(r'#(\S+)')
         .allMatches(_summaryCtrl.text)
         .map((m) => m.group(1)!)
@@ -151,7 +133,6 @@ ${widget.item.url}
     if (!mounted) return;
 
     if (err != null) {
-      // 실패는 시트 안에서 바로 표시
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('저장 실패: $err'),
         backgroundColor: Colors.red,
@@ -161,7 +142,6 @@ ${widget.item.url}
       return;
     }
 
-    // 성공: 시트 닫고 → 부모 콜백으로 스낵바 표시 (context 무효화 방지)
     Navigator.pop(context);
     widget.onSaved?.call();
   }
@@ -180,7 +160,6 @@ ${widget.item.url}
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(children: [
-          // 핸들
           Container(
             margin:     const EdgeInsets.only(top: 10),
             width: 40, height: 4,
@@ -188,7 +167,6 @@ ${widget.item.url}
                 color: Colors.grey[300],
                 borderRadius: BorderRadius.circular(2)),
           ),
-          // 헤더
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Row(children: [
@@ -204,8 +182,6 @@ ${widget.item.url}
             ]),
           ),
           const Divider(),
-
-          // 바디
           Expanded(
             child: _loading
                 ? Center(
@@ -232,8 +208,7 @@ ${widget.item.url}
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text('😢',
-                                  style: TextStyle(fontSize: 40)),
+                              const Text('😢', style: TextStyle(fontSize: 40)),
                               const SizedBox(height: 12),
                               Text(_error!,
                                   textAlign: TextAlign.center,
@@ -244,10 +219,8 @@ ${widget.item.url}
                       )
                     : ListView(
                         controller: ctrl,
-                        padding:
-                            const EdgeInsets.fromLTRB(20, 12, 20, 40),
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
                         children: [
-                          // 제목
                           TextField(
                             controller: _titleCtrl,
                             decoration: const InputDecoration(
@@ -256,7 +229,6 @@ ${widget.item.url}
                             ),
                           ),
                           const SizedBox(height: 16),
-                          // AI 요약 (편집 가능)
                           TextField(
                             controller: _summaryCtrl,
                             maxLines: null,
@@ -268,7 +240,6 @@ ${widget.item.url}
                             ),
                           ),
                           const SizedBox(height: 20),
-                          // 저장 버튼
                           ElevatedButton.icon(
                             onPressed: _save,
                             icon: const Icon(Icons.bookmark_add),

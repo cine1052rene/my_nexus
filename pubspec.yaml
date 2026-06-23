@@ -34,6 +34,7 @@ dependencies:
 
   # Gemini AI
   google_generative_ai: ^0.4.6
+  cloud_functions: ^5.1.3
   shared_preferences: ^2.3.0
 
   # Email (IMAP for external mail — mobile only)

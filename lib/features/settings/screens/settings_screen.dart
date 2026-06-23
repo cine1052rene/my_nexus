@@ -14,30 +14,21 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  final _apiKeyCtrl = TextEditingController();
-  bool _obscure = true;
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final saved = ref.read(geminiApiKeyProvider).valueOrNull ?? '';
-      _apiKeyCtrl.text = saved;
-    });
   }
 
   @override
   void dispose() {
-    _apiKeyCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final svc = FirestoreService();
-    final apiKeyAsync = ref.watch(geminiApiKeyProvider);
-    final savedKey = apiKeyAsync.valueOrNull ?? '';
     final tabFeatures = ref.watch(tabFeaturesProvider);
+    final isPremium = ref.watch(isPremiumProvider).valueOrNull ?? false;
     final featureMap = tabFeatures.valueOrNull ?? {};
 
     return Scaffold(
@@ -87,91 +78,69 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
-          // ── Gemini API 키 ──────────────────────────────────────
-          _SectionTitle('🤖 Gemini API 키'),
+          // ── AI 플랜 ────────────────────────────────────────────
+          _SectionTitle('🤖 AI 플랜'),
           Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        savedKey.isNotEmpty
-                            ? Icons.check_circle
-                            : Icons.warning_amber_rounded,
-                        color: savedKey.isNotEmpty ? Colors.green : Colors.orange,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        savedKey.isNotEmpty ? '키가 설정되어 있어요' : 'API 키가 없어요',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: savedKey.isNotEmpty ? Colors.green : Colors.orange,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _apiKeyCtrl,
-                    obscureText: _obscure,
-                    decoration: InputDecoration(
-                      hintText: 'AIza...',
-                      labelText: 'Gemini API Key',
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                            _obscure ? Icons.visibility_off : Icons.visibility,
-                            size: 18),
-                        onPressed: () => setState(() => _obscure = !_obscure),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: isPremium
+                          ? const Color(0xFFFFF8E1)
+                          : const Color(0xFFEDE9FF),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Text(
+                        isPremium ? '⭐' : '✨',
+                        style: const TextStyle(fontSize: 20),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: () async {
-                            await ref
-                                .read(geminiApiKeyProvider.notifier)
-                                .save(_apiKeyCtrl.text);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('✅ API 키가 저장됐어요')),
-                              );
-                            }
-                          },
-                          child: const Text('저장'),
-                        ),
-                      ),
-                      if (savedKey.isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        OutlinedButton(
-                          onPressed: () async {
-                            await ref
-                                .read(geminiApiKeyProvider.notifier)
-                                .clear();
-                            _apiKeyCtrl.clear();
-                          },
-                          style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red),
-                          child: const Text('삭제'),
-                        ),
-                      ],
-                    ],
+                  title: Text(
+                    isPremium ? '프리미엄' : '무료',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Google AI Studio (aistudio.google.com)에서 무료로 발급받을 수 있어요.',
-                    style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                  subtitle: Text(
+                    isPremium
+                        ? 'Google 로그인으로 자동 연결됨'
+                        : 'Google 로그인으로 AI 기능 사용 가능',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isPremium
+                          ? Colors.amber.withOpacity(0.15)
+                          : Colors.green.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      isPremium ? '프리미엄 ✓' : '활성 ✓',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isPremium
+                            ? Colors.amber[800]
+                            : Colors.green[700],
+                      ),
+                    ),
+                  ),
+                ),
+                if (!isPremium) ...[
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                    child: Text(
+                      '별도 설정 없이 큐레이션·챗봇·이메일 AI를 바로 사용할 수 있어요.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
                   ),
                 ],
-              ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
