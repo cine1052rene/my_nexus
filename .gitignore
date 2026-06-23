@@ -35,3 +35,6 @@ Thumbs.db
 
 # Env
 .env
+
+# Playwright MCP logs (may contain API keys)
+.playwright-mcp/
