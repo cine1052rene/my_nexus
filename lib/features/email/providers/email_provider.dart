@@ -90,9 +90,7 @@ class EmailsNotifier extends AsyncNotifier<List<EmailMessage>> {
     final accounts = await ref.watch(emailAccountsProvider.future);
     if (accounts.isEmpty) return [];
 
-    // AI 서비스 초기화
-    final apiKey = await ref.read(geminiApiKeyProvider.future);
-    if (apiKey.isNotEmpty) EmailAiService.init(apiKey);
+    // AI 서비스는 Firebase Functions 프록시 사용 — 별도 초기화 불필요
 
     return _fetchAll(accounts);
   }
