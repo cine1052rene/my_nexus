@@ -113,10 +113,33 @@ class _HubScreenState extends ConsumerState<HubScreen> {
             if (kw != null && !newTags.contains(kw.label)) newTags.add(kw.label);
           }
         }
-      } else if (category != 'tiktok' &&
-                 category != 'instagram' &&
-                 category != 'twitter') {
-        // 인스타·트위터는 HTTP 차단 → 스킵
+      } else if (category == 'instagram' ||
+                 category == 'threads' ||
+                 category == 'twitter') {
+        // Microlink API — 클라이언트 IP 기준 50req/일 무료
+        // 각 유저 기기 IP가 독립적으로 적용되므로 다수 유저에게도 안전
+        final encoded = Uri.encodeQueryComponent(url);
+        final res = await http
+            .get(Uri.parse('https://api.microlink.io?url=$encoded'))
+            .timeout(const Duration(seconds: 8));
+        final json = jsonDecode(res.body) as Map<String, dynamic>;
+        if (json['status'] == 'success') {
+          final d = json['data'] as Map<String, dynamic>;
+          final t = d['title'] as String?;
+          final img = d['image'] as Map<String, dynamic>?;
+          // 제목: "Instagram" / "Threads • Log in" 같은 제네릭 제목은 제외
+          const _genericTitles = ['Instagram', 'Threads • Log in', 'Log in • Instagram'];
+          if (t != null && t.isNotEmpty && !_genericTitles.contains(t)) {
+            newTitle = t;
+          }
+          // 이미지: data: URL(base64 로고) 제외, 실제 CDN URL만 사용
+          final imgUrl = img?['url'] as String?;
+          if (imgUrl != null && !imgUrl.startsWith('data:')) {
+            newThumb = imgUrl;
+          }
+        }
+      } else if (category != 'tiktok') {
+        // 일반 사이트: OG 메타태그 직접 fetch
         final res = await http.get(Uri.parse(url))
             .timeout(const Duration(seconds: 5));
         final body = utf8.decode(res.bodyBytes, allowMalformed: true);
@@ -195,6 +218,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   String _detectCategory(String url) {
     if (url.contains('youtube.com') || url.contains('youtu.be'))       return 'youtube';
     if (url.contains('instagram.com'))                                  return 'instagram';
+    if (url.contains('threads.net'))                                    return 'threads';
     if (url.contains('facebook.com') || url.contains('fb.com') ||
         url.contains('fb.watch'))                                       return 'facebook';
     if (url.contains('twitter.com') || url.contains('x.com') ||
@@ -211,6 +235,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     switch (category) {
       case 'youtube':   return 'YouTube 영상';
       case 'instagram': return 'Instagram';
+      case 'threads':   return 'Threads';
       case 'facebook':  return 'Facebook';
       case 'twitter':   return 'Twitter/X';
       case 'naver':     return '네이버';
@@ -222,6 +247,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   String _categoryEmoji(String category) => const {
     'youtube':   '▶️',
     'instagram': '📸',
+    'threads':   '🧵',
     'facebook':  '👥',
     'twitter':   '🐦',
     'naver':     '🟢',
@@ -415,6 +441,7 @@ class _CategoryIconBar extends StatelessWidget {
     'all':       Color(0xFF6C63FF),
     'youtube':   Color(0xFFFF0000),
     'instagram': Color(0xFFE1306C),
+    'threads':   Color(0xFF101010),
     'facebook':  Color(0xFF1877F2),
     'twitter':   Color(0xFF000000),
     'naver':     Color(0xFF03C75A),
@@ -431,6 +458,7 @@ class _CategoryIconBar extends StatelessWidget {
 
   // 브랜드 텍스트 아이콘 (Material 아이콘 없는 경우)
   static const _labels = <String, String>{
+    'threads':  '@',
     'facebook': 'f',
     'twitter':  'X',
     'naver':    'N',
@@ -463,25 +491,24 @@ class _CategoryIconBar extends StatelessWidget {
     final cats = HubCategory.all_list;
     return SizedBox(
       height: 36,
-      child: Row(
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
         children: cats.map((cat) {
           final isSelected = selected == cat.id;
           final color = _colors[cat.id] ?? const Color(0xFF6C63FF);
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => onSelect(cat.id),
-              behavior: HitTestBehavior.opaque,
-              child: Center(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: isSelected ? color.withOpacity(0.12) : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: _iconWidget(cat.id, isSelected),
-                ),
+          return GestureDetector(
+            onTap: () => onSelect(cat.id),
+            behavior: HitTestBehavior.opaque,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? color.withOpacity(0.12) : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
               ),
+              child: _iconWidget(cat.id, isSelected),
             ),
           );
         }).toList(),

@@ -122,12 +122,25 @@ class _ListCard extends StatelessWidget {
     );
   }
 
-  Widget _thumbFallback() => Center(
-    child: Text(
-      item.isYouTube ? '▶️' : '🔗',
-      style: const TextStyle(fontSize: 26),
-    ),
-  );
+  Widget _thumbFallback() {
+    final cat = HubCategory.fromId(item.category);
+    return Container(
+      width: 136, height: 96,
+      color: _brandBgColor(item.category),
+      child: Center(
+        child: Text(cat.emoji, style: const TextStyle(fontSize: 26)),
+      ),
+    );
+  }
+
+  static Color _brandBgColor(String category) => const {
+    'youtube':   Color(0x1FFF0000),
+    'instagram': Color(0x1FE1306C),
+    'threads':   Color(0x1F101010),
+    'facebook':  Color(0x1F1877F2),
+    'twitter':   Color(0x1F000000),
+    'naver':     Color(0x1F03C75A),
+  }[category] ?? const Color(0xFFF0EFFF);
 }
 
 // ── Grid 모드 (2열 그리드) ─────────────────────────────────────────
@@ -239,6 +252,7 @@ class _SourceIcon extends StatelessWidget {
   static const _colors = <String, Color>{
     'youtube':   Color(0xFFFF0000),
     'instagram': Color(0xFFE1306C),
+    'threads':   Color(0xFF101010),
     'facebook':  Color(0xFF1877F2),
     'twitter':   Color(0xFF000000),
     'naver':     Color(0xFF03C75A),
@@ -252,8 +266,9 @@ class _SourceIcon extends StatelessWidget {
     'etc':       Icons.link,
   };
 
-  // 텍스트로 표현하는 브랜드 (f, X, N)
+  // 텍스트로 표현하는 브랜드 (@, f, X, N)
   static const _textLabels = <String, String>{
+    'threads':  '@',
     'facebook': 'f',
     'twitter':  'X',
     'naver':    'N',
@@ -282,23 +297,36 @@ class _SourceIcon extends StatelessWidget {
   }
 }
 
-// ── 공통 플레이스홀더 (Grid용) ──────────────────────────────────────
+// ── 공통 플레이스홀더 (Grid용) — 플랫폼별 브랜드 컬러 배경 ──────────
 class _Placeholder extends StatelessWidget {
   final LinkItem item;
   final double height;
   const _Placeholder({required this.item, this.height = 80});
 
+  static const _bgColors = <String, Color>{
+    'youtube':   Color(0x1FFF0000),
+    'instagram': Color(0x1FE1306C),
+    'threads':   Color(0x1F101010),
+    'facebook':  Color(0x1F1877F2),
+    'twitter':   Color(0x1F000000),
+    'naver':     Color(0x1F03C75A),
+  };
+
   @override
-  Widget build(BuildContext context) => Container(
-    height: height, width: double.infinity,
-    color: const Color(0xFFF0EFFF),
-    child: Center(
-      child: Text(
-        item.isYouTube ? '▶️' : '🔗',
-        style: TextStyle(fontSize: height > 90 ? 36 : 26),
+  Widget build(BuildContext context) {
+    final cat = HubCategory.fromId(item.category);
+    final bg = _bgColors[item.category] ?? const Color(0xFFF0EFFF);
+    return Container(
+      height: height, width: double.infinity,
+      color: bg,
+      child: Center(
+        child: Text(
+          cat.emoji,
+          style: TextStyle(fontSize: height > 90 ? 36 : 26),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 // ── 공통 팝업 메뉴 ─────────────────────────────────────────────────
