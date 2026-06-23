@@ -115,7 +115,8 @@ class _HubScreenState extends ConsumerState<HubScreen> {
         }
       } else if (category == 'instagram' ||
                  category == 'threads' ||
-                 category == 'twitter') {
+                 category == 'twitter' ||
+                 category == 'tiktok') {
         // Microlink API — 클라이언트 IP 기준 50req/일 무료
         // 각 유저 기기 IP가 독립적으로 적용되므로 다수 유저에게도 안전
         final encoded = Uri.encodeQueryComponent(url);
@@ -127,8 +128,11 @@ class _HubScreenState extends ConsumerState<HubScreen> {
           final d = json['data'] as Map<String, dynamic>;
           final t = d['title'] as String?;
           final img = d['image'] as Map<String, dynamic>?;
-          // 제목: "Instagram" / "Threads • Log in" 같은 제네릭 제목은 제외
-          const _genericTitles = ['Instagram', 'Threads • Log in', 'Log in • Instagram'];
+          // 제목: 제네릭/로그인 유도 제목 제외
+          const _genericTitles = [
+            'Instagram', 'Threads • Log in', 'Log in • Instagram',
+            'TikTok', 'Log in | TikTok',
+          ];
           if (t != null && t.isNotEmpty && !_genericTitles.contains(t)) {
             newTitle = t;
           }
@@ -138,7 +142,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
             newThumb = imgUrl;
           }
         }
-      } else if (category != 'tiktok') {
+      } else {
         // 일반 사이트: OG 메타태그 직접 fetch
         final res = await http.get(Uri.parse(url))
             .timeout(const Duration(seconds: 5));
@@ -216,14 +220,15 @@ class _HubScreenState extends ConsumerState<HubScreen> {
 
   // ── 카테고리 자동 감지 (출처별) ───────────────────────────────────
   String _detectCategory(String url) {
-    if (url.contains('youtube.com') || url.contains('youtu.be'))       return 'youtube';
-    if (url.contains('instagram.com'))                                  return 'instagram';
-    if (url.contains('threads.net'))                                    return 'threads';
+    if (url.contains('youtube.com') || url.contains('youtu.be'))        return 'youtube';
+    if (url.contains('instagram.com'))                                   return 'instagram';
+    if (url.contains('threads.net') || url.contains('threads.com'))     return 'threads';
+    if (url.contains('tiktok.com'))                                      return 'tiktok';
     if (url.contains('facebook.com') || url.contains('fb.com') ||
-        url.contains('fb.watch'))                                       return 'facebook';
+        url.contains('fb.watch'))                                        return 'facebook';
     if (url.contains('twitter.com') || url.contains('x.com') ||
-        url.contains('t.co'))                                           return 'twitter';
-    if (url.contains('naver.com') || url.contains('naver.me'))         return 'naver';
+        url.contains('t.co'))                                            return 'twitter';
+    if (url.contains('naver.com') || url.contains('naver.me'))          return 'naver';
     return 'etc';
   }
 
@@ -236,6 +241,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
       case 'youtube':   return 'YouTube 영상';
       case 'instagram': return 'Instagram';
       case 'threads':   return 'Threads';
+      case 'tiktok':    return 'TikTok';
       case 'facebook':  return 'Facebook';
       case 'twitter':   return 'Twitter/X';
       case 'naver':     return '네이버';
@@ -248,6 +254,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     'youtube':   '▶️',
     'instagram': '📸',
     'threads':   '🧵',
+    'tiktok':    '🎵',
     'facebook':  '👥',
     'twitter':   '🐦',
     'naver':     '🟢',
@@ -442,6 +449,7 @@ class _CategoryIconBar extends StatelessWidget {
     'youtube':   Color(0xFFFF0000),
     'instagram': Color(0xFFE1306C),
     'threads':   Color(0xFF101010),
+    'tiktok':    Color(0xFFEE1D52),
     'facebook':  Color(0xFF1877F2),
     'twitter':   Color(0xFF000000),
     'naver':     Color(0xFF03C75A),
@@ -453,6 +461,7 @@ class _CategoryIconBar extends StatelessWidget {
     'all':       Icons.apps,
     'youtube':   Icons.play_circle_filled,
     'instagram': Icons.camera_alt,
+    'tiktok':    Icons.music_note,
     'etc':       Icons.link,
   };
 

@@ -137,6 +137,7 @@ class _ListCard extends StatelessWidget {
     'youtube':   Color(0x1FFF0000),
     'instagram': Color(0x1FE1306C),
     'threads':   Color(0x1F101010),
+    'tiktok':    Color(0x1FEE1D52),
     'facebook':  Color(0x1F1877F2),
     'twitter':   Color(0x1F000000),
     'naver':     Color(0x1F03C75A),
@@ -253,6 +254,7 @@ class _SourceIcon extends StatelessWidget {
     'youtube':   Color(0xFFFF0000),
     'instagram': Color(0xFFE1306C),
     'threads':   Color(0xFF101010),
+    'tiktok':    Color(0xFFEE1D52),
     'facebook':  Color(0xFF1877F2),
     'twitter':   Color(0xFF000000),
     'naver':     Color(0xFF03C75A),
@@ -263,6 +265,7 @@ class _SourceIcon extends StatelessWidget {
   static const _matIcons = <String, IconData>{
     'youtube':   Icons.play_circle_filled,
     'instagram': Icons.camera_alt,
+    'tiktok':    Icons.music_note,
     'etc':       Icons.link,
   };
 
@@ -307,6 +310,7 @@ class _Placeholder extends StatelessWidget {
     'youtube':   Color(0x1FFF0000),
     'instagram': Color(0x1FE1306C),
     'threads':   Color(0x1F101010),
+    'tiktok':    Color(0x1FEE1D52),
     'facebook':  Color(0x1F1877F2),
     'twitter':   Color(0x1F000000),
     'naver':     Color(0x1F03C75A),

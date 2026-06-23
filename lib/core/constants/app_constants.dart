@@ -21,13 +21,14 @@ class HubCategory {
   static const youtube   = HubCategory(id: 'youtube',   label: '유튜브', emoji: '▶️');
   static const instagram = HubCategory(id: 'instagram', label: '인스타', emoji: '📸');
   static const threads   = HubCategory(id: 'threads',   label: '쓰레드', emoji: '🧵');
+  static const tiktok    = HubCategory(id: 'tiktok',    label: '틱톡',   emoji: '🎵');
   static const facebook  = HubCategory(id: 'facebook',  label: '페북',   emoji: '👥');
   static const twitter   = HubCategory(id: 'twitter',   label: '트위터', emoji: '🐦');
   static const naver     = HubCategory(id: 'naver',     label: '네이버', emoji: '🟢');
   static const etc       = HubCategory(id: 'etc',       label: '기타',   emoji: '🔗');
 
   static const List<HubCategory> all_list = [
-    all, youtube, instagram, threads, facebook, twitter, naver, etc,
+    all, youtube, instagram, threads, tiktok, facebook, twitter, naver, etc,
   ];
 
   static HubCategory fromId(String id) =>
