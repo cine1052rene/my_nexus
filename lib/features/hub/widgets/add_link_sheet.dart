@@ -242,16 +242,34 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
-                  children: HubCategory.all_list.skip(1).map((cat) => ChoiceChip(
-                    label: Text('${cat.emoji} ${cat.label}'),
-                    selected: _category == cat.id,
-                    onSelected: (_) => setState(() {
-                      _category = cat.id;
-                      if (cat.id != 'youtube') {
-                        _ytKeywordId = null;
-                      }
-                    }),
-                  )).toList(),
+                  runSpacing: 6,
+                  children: HubCategory.all_list.skip(1).map((cat) {
+                    final sel = _category == cat.id;
+                    return ChoiceChip(
+                      label: Text(
+                        '${cat.emoji} ${cat.label}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: sel ? const Color(0xFF6C63FF) : Colors.black87,
+                          fontWeight: sel ? FontWeight.w700 : FontWeight.normal,
+                        ),
+                      ),
+                      selected: sel,
+                      selectedColor: const Color(0xFFEDE9FF),
+                      backgroundColor: Colors.grey.shade100,
+                      side: BorderSide(
+                        color: sel
+                            ? const Color(0xFF6C63FF)
+                            : Colors.grey.shade300,
+                        width: sel ? 1.5 : 1.0,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      onSelected: (_) => setState(() {
+                        _category = cat.id;
+                        if (cat.id != 'youtube') _ytKeywordId = null;
+                      }),
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 12),
 
