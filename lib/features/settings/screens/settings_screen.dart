@@ -251,6 +251,81 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     }
                   },
                 ),
+                const Divider(height: 1, indent: 56),
+                ListTile(
+                  leading: const Icon(Icons.delete_forever,
+                      color: Color(0xFFB00020), size: 20),
+                  title: const Text('계정 및 데이터 삭제',
+                      style: TextStyle(
+                          color: Color(0xFFB00020),
+                          fontWeight: FontWeight.w600)),
+                  subtitle: const Text('모든 데이터가 영구 삭제됩니다',
+                      style: TextStyle(fontSize: 11)),
+                  onTap: () async {
+                    // 1단계: 경고 확인
+                    final step1 = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('⚠️ 계정 삭제'),
+                        content: const Text(
+                          '계정을 삭제하면 모든 저장 데이터가 영구적으로 삭제되며 복구할 수 없습니다.\n\n정말 삭제하시겠습니까?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('취소'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('계속',
+                                style: TextStyle(color: Color(0xFFB00020))),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (step1 != true || !context.mounted) return;
+
+                    // 2단계: 최종 확인
+                    final step2 = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('🗑️ 최종 확인'),
+                        content: const Text(
+                          '이 작업은 되돌릴 수 없습니다.\n계정과 모든 데이터를 영구 삭제합니다.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('취소'),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFB00020)),
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('삭제',
+                                style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (step2 != true || !context.mounted) return;
+
+                    // 계정 삭제 실행
+                    final err = await ref
+                        .read(authNotifierProvider.notifier)
+                        .deleteAccount();
+
+                    if (!context.mounted) return;
+                    if (err != null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('오류: $err'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                ),
               ],
             ),
           ),

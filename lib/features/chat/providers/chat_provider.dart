@@ -9,6 +9,14 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
   @override
   List<ChatMessage> build() => [];
 
+  // 슬라이딩 윈도우: 최대 10턴(20 메시지) 유지 → 토큰 비용 절감
+  static const int _maxHistoryTurns = 10;
+
+  List<Map<String, dynamic>> get _trimmedHistory {
+    if (_history.length <= _maxHistoryTurns * 2) return List.from(_history);
+    return List.from(_history.sublist(_history.length - _maxHistoryTurns * 2));
+  }
+
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
@@ -25,10 +33,10 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     ];
 
     try {
-      // Firebase Function 호출 (API 키 불필요)
+      // Firebase Function 호출 (슬라이딩 윈도우 히스토리 전달)
       final answer = await GeminiService.chat(
         prompt: text,
-        history: List.from(_history),
+        history: _trimmedHistory,
       );
 
       // 히스토리 업데이트

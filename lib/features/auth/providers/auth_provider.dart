@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 // 현재 로그인 상태 스트림
 final authStateProvider = StreamProvider<User?>((ref) {
@@ -56,6 +57,28 @@ class AuthNotifier extends AsyncNotifier<void> {
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
+  }
+
+  /// 계정 및 모든 데이터 영구 삭제 (Google Play 정책 필수)
+  /// 반환값: null = 성공, String = 오류 메시지
+  Future<String?> deleteAccount() async {
+    try {
+      state = const AsyncLoading();
+
+      // Cloud Function 호출 (서버에서 users 문서 + Auth 삭제)
+      final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast3');
+      await functions.httpsCallable('deleteUserAccount').call();
+
+      // 클라이언트 로그아웃
+      await _googleSignIn.signOut();
+      await _auth.signOut();
+
+      state = const AsyncData(null);
+      return null; // 성공
+    } catch (e) {
+      state = AsyncError(e, StackTrace.current);
+      return '계정 삭제 오류: ${e.toString()}';
+    }
   }
 
   /// 첫 로그인 시 Firestore에 유저 문서 생성
