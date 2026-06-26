@@ -13,6 +13,7 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollCtrl = ScrollController();
+  bool _hubLoading = false;
 
   @override
   void dispose() {
@@ -41,18 +42,52 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
+  Future<void> _injectHub() async {
+    if (_hubLoading) return;
+    setState(() => _hubLoading = true);
+    try {
+      await ref.read(chatProvider.notifier).injectHubContext();
+      _scrollToBottom();
+    } finally {
+      if (mounted) setState(() => _hubLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final messages = ref.watch(chatProvider);
-    final isLoading = ref.watch(isChatLoadingProvider);
+    final messages   = ref.watch(chatProvider);
+    final isLoading  = ref.watch(isChatLoadingProvider);
+    final hubInjected = ref.watch(hubInjectedProvider);
 
     // 새 메시지 오면 스크롤
-    ref.listen(chatProvider, (_, __) => _scrollToBottom());
+    ref.listen(chatProvider, (prev, next) => _scrollToBottom());
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('🤖 AI 챗봇'),
         actions: [
+          // DB허브 연동 버튼
+          if (_hubLoading)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else
+            Tooltip(
+              message: hubInjected ? 'DB허브 연동됨 (다시 연동)' : 'DB허브 연동',
+              child: IconButton(
+                icon: Icon(
+                  hubInjected ? Icons.library_books : Icons.library_books_outlined,
+                  color: hubInjected ? const Color(0xFF6C63FF) : null,
+                ),
+                onPressed: _injectHub,
+              ),
+            ),
+          // 대화 초기화 버튼
           if (messages.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.refresh),
@@ -66,7 +101,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           // ── 메시지 목록 ─────────────────────────────────────
           Expanded(
             child: messages.isEmpty
-                ? _EmptyState()
+                ? _EmptyState(onInjectHub: _injectHub, hubLoading: _hubLoading)
                 : ListView.builder(
                     controller: _scrollCtrl,
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -91,7 +126,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('대화 초기화'),
-        content: const Text('대화 내용을 모두 지울까요?'),
+        content: const Text('대화 내용을 모두 지울까요?\nDB허브 연동도 해제됩니다.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
           TextButton(
@@ -107,20 +142,76 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
 // ── 빈 상태 ─────────────────────────────────────────────────
 class _EmptyState extends StatelessWidget {
+  final VoidCallback onInjectHub;
+  final bool hubLoading;
+
+  const _EmptyState({required this.onInjectHub, required this.hubLoading});
+
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text('🤖', style: TextStyle(fontSize: 56)),
-          const SizedBox(height: 16),
-          const Text('무엇이든 물어보세요',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          Text('Gemini 2.5 Flash 기반 챗봇',
-              style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-        ],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('🤖', style: TextStyle(fontSize: 56)),
+            const SizedBox(height: 16),
+            const Text('무엇이든 물어보세요',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text('Gemini 2.5 Flash 기반 챗봇',
+                style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+            const SizedBox(height: 28),
+            // DB허브 연동 안내 카드
+            InkWell(
+              onTap: hubLoading ? null : onInjectHub,
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEDE9FF),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF6C63FF).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Text('📚', style: TextStyle(fontSize: 24)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'DB허브 연동하기',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF6C63FF),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '저장한 링크를 AI에 연동하면\n콘텐츠에 대해 질문할 수 있어요',
+                            style: TextStyle(fontSize: 12, color: Colors.grey[700], height: 1.4),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (hubLoading)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6C63FF)),
+                      )
+                    else
+                      const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF6C63FF)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -228,7 +319,7 @@ class _TypingIndicatorState extends State<_TypingIndicator>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _ctrl,
-      builder: (_, __) {
+      builder: (context2, animation) {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (i) {

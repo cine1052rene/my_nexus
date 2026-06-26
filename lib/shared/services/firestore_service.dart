@@ -57,6 +57,16 @@ class FirestoreService {
     _writes++;
   }
 
+  /// 전체 링크 목록 1회 조회 (챗봇 컨텍스트 주입용)
+  Future<List<LinkItem>> getAllLinks({int limit = 100}) async {
+    final snap = await _linksCol
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .get();
+    _reads += snap.docs.length;
+    return snap.docs.map((d) => LinkItem.fromFirestore(d)).toList();
+  }
+
   /// URL로 기존 링크 검색 (중복 저장 방지용)
   Future<LinkItem?> findByUrl(String url) async {
     final snap = await _linksCol
