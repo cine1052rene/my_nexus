@@ -99,7 +99,7 @@ class HubNotifier extends Notifier<void> {
     }
   }
 
-  /// 공유 시트에서 빠른 저장 (태그 포함)
+  /// 공유 시트에서 빠른 저장 (2차 중복 방지: URL 이미 존재하면 기존 항목 반환)
   Future<LinkItem?> quickAddLink({
     required String url,
     required String title,
@@ -108,6 +108,10 @@ class HubNotifier extends Notifier<void> {
     List<String> tags = const [],
   }) async {
     try {
+      // Firestore에 동일 URL이 이미 있으면 새로 저장하지 않고 기존 항목 반환
+      final existing = await _service.findByUrl(url);
+      if (existing != null) return existing;
+
       final item = LinkItem(
         id: _uuid.v4(), url: url, title: title, category: category,
         thumbnailUrl: thumbnailUrl, tags: tags, createdAt: DateTime.now(),

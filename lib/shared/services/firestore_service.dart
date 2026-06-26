@@ -57,6 +57,17 @@ class FirestoreService {
     _writes++;
   }
 
+  /// URL로 기존 링크 검색 (중복 저장 방지용)
+  Future<LinkItem?> findByUrl(String url) async {
+    final snap = await _linksCol
+        .where('url', isEqualTo: url)
+        .limit(1)
+        .get();
+    _reads++;
+    if (snap.docs.isEmpty) return null;
+    return LinkItem.fromFirestore(snap.docs.first);
+  }
+
   Future<void> updateLink(LinkItem item) async {
     await _linksCol.doc(item.id).update(item.toFirestore());
     _writes++;

@@ -57,12 +57,12 @@ class _HubScreenState extends ConsumerState<HubScreen> {
 
   /// 공유 URL → 즉시 저장 → SnackBar → 백그라운드 메타데이터 업데이트
   Future<void> _autoSaveFromShare(String url) async {
-    // ── 중복 방지: 동일 URL이 3초 내 재진입하면 무시 ──────────────
-    // Cold/Warm start 양쪽 경로 또는 HubScreen 재생성으로 인한 이중 저장 차단
+    // ── 1차 방어: 동일 URL이 30초 내 재진입하면 무시 ──────────────
+    // Samsung OneUI 등 onNewIntent 지연 중복 호출 케이스까지 커버
     final now = DateTime.now();
     if (url == _lastSavedUrl &&
         _lastSavedAt != null &&
-        now.difference(_lastSavedAt!).inSeconds < 3) {
+        now.difference(_lastSavedAt!).inSeconds < 30) {
       return;
     }
     _lastSavedUrl = url;
