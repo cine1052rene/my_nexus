@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import '../../../shared/services/google_auth_service.dart';
 
 // 현재 로그인 상태 스트림
 final authStateProvider = StreamProvider<User?>((ref) {
@@ -16,10 +16,7 @@ final currentUserProvider = Provider<User?>((ref) {
 
 class AuthNotifier extends AsyncNotifier<void> {
   final _auth = FirebaseAuth.instance;
-  final _googleSignIn = GoogleSignIn(
-    // google-services.json의 web client id (client_type: 3)
-    serverClientId: '397552928960-1kg2b02o541nof3s0ct06kbiaseb53oh.apps.googleusercontent.com',
-  );
+  // appGoogleSignIn — google_auth_service.dart의 전역 단일 인스턴스 사용
   final _db = FirebaseFirestore.instance;
 
   @override
@@ -30,7 +27,7 @@ class AuthNotifier extends AsyncNotifier<void> {
     try {
       state = const AsyncLoading();
 
-      final googleUser = await _googleSignIn.signIn();
+      final googleUser = await appGoogleSignIn.signIn();
       if (googleUser == null) {
         state = const AsyncData(null);
         return '로그인이 취소됐어요.';
@@ -55,7 +52,7 @@ class AuthNotifier extends AsyncNotifier<void> {
 
   /// 로그아웃
   Future<void> signOut() async {
-    await _googleSignIn.signOut();
+    await appGoogleSignIn.signOut();
     await _auth.signOut();
   }
 
@@ -70,7 +67,7 @@ class AuthNotifier extends AsyncNotifier<void> {
       await functions.httpsCallable('deleteUserAccount').call();
 
       // 클라이언트 로그아웃
-      await _googleSignIn.signOut();
+      await appGoogleSignIn.signOut();
       await _auth.signOut();
 
       state = const AsyncData(null);

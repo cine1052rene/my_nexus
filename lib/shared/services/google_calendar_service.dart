@@ -4,22 +4,25 @@ import '../../features/calendar/models/schedule_event.dart';
 import 'google_auth_service.dart';
 
 class GoogleCalendarService {
-  /// 구글 캘린더 권한 요청 (로그인 포함)
+  /// 구글 캘린더 권한 요청 (로그인 + calendar 스코프 증분 요청)
   static Future<bool> requestPermission() async {
-    final token = await getGoogleAccessToken(promptSignIn: true);
+    final token = await getCalendarAccessToken();
     return token != null;
   }
 
   /// 현재 연결 상태
   static bool get isConnected => appGoogleSignIn.currentUser != null;
 
-  /// 연결 해제
-  static Future<void> disconnect() async => await appGoogleSignIn.signOut();
+  /// Calendar 연결 해제 (앱 로그아웃 X — 스코프만 해제 불가, 토글 OFF만)
+  static Future<void> disconnect() async {
+    // Google API는 클라이언트에서 개별 스코프 취소 불가
+    // 토글 OFF 처리는 provider에서 상태만 false로 변경
+  }
 
   /// 특정 월의 Google Calendar 이벤트 → ScheduleEvent 리스트로 반환
   static Future<List<ScheduleEvent>> getEventsForMonth(DateTime month) async {
     try {
-      final token = await getGoogleAccessToken();
+      final token = await getCalendarAccessToken();
       if (token == null) return [];
 
       // 해당 월 범위 (UTC)
