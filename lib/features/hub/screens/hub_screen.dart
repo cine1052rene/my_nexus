@@ -21,13 +21,19 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   bool _searchActive = false;
   final _searchCtrl = TextEditingController();
 
+  // 중복 저장 방지: 앱 전역 static — HubScreen 재생성 시에도 유지됨
+  static String? _lastSavedUrl;
+  static DateTime? _lastSavedAt;
+
   @override
   void initState() {
     super.initState();
+    // Cold start (앱이 종료됐다가 공유로 실행) — getSharedText 경로
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final url = await ShareIntentService.getSharedText();
       if (url != null && mounted) _autoSaveFromShare(url);
     });
+    // Warm start (앱이 백그라운드에 있다가 공유로 복귀) — listener 경로
     ShareIntentService.listenForSharedText((url) {
       if (mounted) _autoSaveFromShare(url);
     });
@@ -51,6 +57,16 @@ class _HubScreenState extends ConsumerState<HubScreen> {
 
   /// 공유 URL → 즉시 저장 → SnackBar → 백그라운드 메타데이터 업데이트
   Future<void> _autoSaveFromShare(String url) async {
+    // ── 중복 방지: 동일 URL이 3초 내 재진입하면 무시 ──────────────
+    // Cold/Warm start 양쪽 경로 또는 HubScreen 재생성으로 인한 이중 저장 차단
+    final now = DateTime.now();
+    if (url == _lastSavedUrl &&
+        _lastSavedAt != null &&
+        now.difference(_lastSavedAt!).inSeconds < 3) {
+      return;
+    }
+    _lastSavedUrl = url;
+    _lastSavedAt = now;
     final messenger = ScaffoldMessenger.of(context);
     final category  = _detectCategory(url);
     String  title     = _defaultTitle(url, category);

@@ -39,11 +39,34 @@ GoRouter _buildRouter(bool isLoggedIn) => GoRouter(
   ],
 );
 
-class MyNexusApp extends ConsumerWidget {
+class MyNexusApp extends ConsumerStatefulWidget {
   const MyNexusApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyNexusApp> createState() => _MyNexusAppState();
+}
+
+class _MyNexusAppState extends ConsumerState<MyNexusApp> {
+  GoRouter? _router;
+  bool? _wasLoggedIn;
+
+  // 로그인 상태가 실제로 바뀔 때만 라우터를 새로 생성 (매 build마다 재생성 방지)
+  GoRouter _getRouter(bool isLoggedIn) {
+    if (_router == null || _wasLoggedIn != isLoggedIn) {
+      _router = _buildRouter(isLoggedIn);
+      _wasLoggedIn = isLoggedIn;
+    }
+    return _router!;
+  }
+
+  @override
+  void dispose() {
+    _router?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authAsync = ref.watch(authStateProvider);
 
     return authAsync.when(
@@ -55,7 +78,7 @@ class MyNexusApp extends ConsumerWidget {
         home: Scaffold(body: Center(child: Text('오류가 발생했어요'))),
       ),
       data: (user) {
-        final router = _buildRouter(user != null);
+        final router = _getRouter(user != null);
         return MaterialApp.router(
           title: 'MyNexus',
           theme: AppTheme.light,
