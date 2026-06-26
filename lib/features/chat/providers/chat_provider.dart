@@ -1,7 +1,31 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/chat_message.dart';
 import '../../../shared/services/gemini_service.dart';
 import '../../../shared/services/firestore_service.dart';
+
+const freeDailyLimit = 30;
+
+String _todayString() {
+  final now = DateTime.now();
+  return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+}
+
+/// 오늘 사용한 챗봇 횟수 (날짜 바뀌면 자동 0)
+final chatDailyUsageProvider = StreamProvider<int>((ref) {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return Stream.value(0);
+  return FirebaseFirestore.instance
+      .doc('users/${user.uid}')
+      .snapshots()
+      .map((doc) {
+    final data = doc.data() ?? {};
+    final lastDate = data['lastUsageDate'] as String? ?? '';
+    if (lastDate != _todayString()) return 0;
+    return data['dailyUsage'] as int? ?? 0;
+  });
+});
 
 // DB허브 연동 여부
 final hubInjectedProvider = StateProvider<bool>((ref) => false);

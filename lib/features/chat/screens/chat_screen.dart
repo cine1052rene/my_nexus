@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/chat_provider.dart';
 import '../models/chat_message.dart';
+import '../../settings/providers/settings_provider.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -55,16 +56,51 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final messages   = ref.watch(chatProvider);
-    final isLoading  = ref.watch(isChatLoadingProvider);
+    final messages    = ref.watch(chatProvider);
+    final isLoading   = ref.watch(isChatLoadingProvider);
     final hubInjected = ref.watch(hubInjectedProvider);
+    final apiKey      = ref.watch(geminiApiKeyProvider).valueOrNull ?? '';
+    final isUnlimited = apiKey.isNotEmpty;
+    final usedToday   = ref.watch(chatDailyUsageProvider).valueOrNull ?? 0;
+    final remaining   = (freeDailyLimit - usedToday).clamp(0, freeDailyLimit);
 
     // 새 메시지 오면 스크롤
     ref.listen(chatProvider, (prev, next) => _scrollToBottom());
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🤖 AI 챗봇'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('🤖 AI 챗봇'),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: isUnlimited
+                    ? Colors.green.shade50
+                    : remaining <= 5
+                        ? Colors.red.shade50
+                        : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                isUnlimited
+                    ? '무제한'
+                    : '$remaining회 남음',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isUnlimited
+                      ? Colors.green.shade700
+                      : remaining <= 5
+                          ? Colors.red.shade600
+                          : Colors.grey[600],
+                ),
+              ),
+            ),
+          ],
+        ),
         actions: [
           // DB허브 연동 버튼
           if (_hubLoading)
@@ -101,7 +137,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           // ── 메시지 목록 ─────────────────────────────────────
           Expanded(
             child: messages.isEmpty
-                ? _EmptyState(onInjectHub: _injectHub, hubLoading: _hubLoading)
+                ? const _EmptyState()
                 : ListView.builder(
                     controller: _scrollCtrl,
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -142,76 +178,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
 // ── 빈 상태 ─────────────────────────────────────────────────
 class _EmptyState extends StatelessWidget {
-  final VoidCallback onInjectHub;
-  final bool hubLoading;
-
-  const _EmptyState({required this.onInjectHub, required this.hubLoading});
+  const _EmptyState();
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('🤖', style: TextStyle(fontSize: 56)),
-            const SizedBox(height: 16),
-            const Text('무엇이든 물어보세요',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Text('Gemini 2.5 Flash 기반 챗봇',
-                style: TextStyle(fontSize: 13, color: Colors.grey[500])),
-            const SizedBox(height: 28),
-            // DB허브 연동 안내 카드
-            InkWell(
-              onTap: hubLoading ? null : onInjectHub,
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEDE9FF),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF6C63FF).withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Text('📚', style: TextStyle(fontSize: 24)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'DB허브 연동하기',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF6C63FF),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '저장한 링크를 AI에 연동하면\n콘텐츠에 대해 질문할 수 있어요',
-                            style: TextStyle(fontSize: 12, color: Colors.grey[700], height: 1.4),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (hubLoading)
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6C63FF)),
-                      )
-                    else
-                      const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF6C63FF)),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('🤖', style: TextStyle(fontSize: 56)),
+          const SizedBox(height: 16),
+          const Text('무엇이든 물어보세요',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Text('Gemini 2.5 Flash 기반 챗봇',
+              style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+        ],
       ),
     );
   }
