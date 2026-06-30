@@ -237,15 +237,15 @@ class _GridCard extends StatelessWidget {
                   )
                 : _Placeholder(item: item),
           ),
-          // 정보 영역 — Expanded로 카드 남은 공간 채움
+          // 정보 영역 — Stack: 배지+제목은 Column, 메뉴는 우상단 float
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 5, 2, 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 배지 + ⋮ 메뉴 한 줄
-                  Row(
+            child: Stack(
+              children: [
+                // 배지 + 제목 (Row 없이 → PopupMenu 48dp 터치타겟 영향 Zero)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 5, 36, 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
@@ -264,27 +264,30 @@ class _GridCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const Spacer(),
-                      _Menu(
-                        onEdit: onEdit, onDelete: onDelete, onCurate: onCurate,
-                        iconSize: 16,
+                      const SizedBox(height: 3),
+                      Text(
+                        item.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 3),
-                  // 제목 — 마이룸과 동일 스타일
-                  Text(
-                    item.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                    ),
+                ),
+                // ⋮ 메뉴 — 우상단에 float (Column 높이에 영향 없음)
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: _Menu(
+                    onEdit: onEdit, onDelete: onDelete, onCurate: onCurate,
+                    iconSize: 16,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ]),
