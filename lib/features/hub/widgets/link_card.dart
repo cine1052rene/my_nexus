@@ -240,27 +240,36 @@ class _GridCard extends StatelessWidget {
           // 정보 영역 — Expanded로 카드 남은 공간 채움
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 5, 8, 4),
+              padding: const EdgeInsets.fromLTRB(8, 5, 2, 4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 카테고리 배지 (마이룸 플랫폼 배지와 동일 스타일)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: brandColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${cat.emoji} ${cat.label}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: item.category == 'threads' || item.category == 'twitter'
-                            ? Colors.grey[700]
-                            : brandColor,
+                  // 배지 + ⋮ 메뉴 한 줄
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: brandColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '${cat.emoji} ${cat.label}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: item.category == 'threads' || item.category == 'twitter'
+                                ? Colors.grey[700]
+                                : brandColor,
+                          ),
+                        ),
                       ),
-                    ),
+                      const Spacer(),
+                      _Menu(
+                        onEdit: onEdit, onDelete: onDelete, onCurate: onCurate,
+                        iconSize: 16,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 3),
                   // 제목 — 마이룸과 동일 스타일
