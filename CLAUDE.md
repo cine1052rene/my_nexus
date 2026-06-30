@@ -292,3 +292,19 @@ Forbidden in ttapp:
 - **매일 09:00** — 받은편지함 AI 분류 (중요 알림 + 스팸 → 휴지통)
 - **매일 10:00** — 휴지통 5일 이상 메일 영구 삭제
 - Gmail 계정 ID: `knT1NejP61oreCTswj3F`
+
+## 📋 나중에 할 일 목록 (Play Store 출시 단계별)
+
+### 1단계 — 개발자 등록 & 첫 출시
+- [ ] Google Play Console 개발자 계정 등록 ($25)
+- [ ] 키스토어 생성 + 3중 백업 (PC + Google Drive + USB)
+- [ ] `flutter build appbundle --release` (AAB 빌드)
+- [ ] Play Console에 앱 등록 → 내부 테스트 → 출시
+
+### 2단계 — 출시 후 Google OAuth 심사
+- [ ] **Google Calendar 연동** — OAuth 앱 인증 심사 (calendar.readonly 스코프)
+- [ ] **Gmail 연동** — CASA Tier 2 심사 (이미 대기 중)
+- [ ] 임시 우회: Google Cloud Console 테스트 유저에 본인 계정 추가 (개인용)
+
+### 3단계 — 운영 안정화
+- [ ] Firestore TTL policy 활성화 (usage 컬렉션 자동 만료)
