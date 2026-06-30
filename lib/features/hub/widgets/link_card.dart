@@ -144,54 +144,139 @@ class _ListCard extends StatelessWidget {
   }[category] ?? const Color(0xFFF0EFFF);
 }
 
-// ── Grid 모드 (2열 그리드) ─────────────────────────────────────────
+// ── Grid 모드 (2열 그리드) — ClipCard(마이룸)와 동일한 구조 ──────────
 class _GridCard extends StatelessWidget {
   final LinkItem item;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onCurate;
-  const _GridCard({required this.item, required this.onEdit, required this.onDelete, required this.onCurate});
+  const _GridCard({required this.item, required this.onEdit,
+      required this.onDelete, required this.onCurate});
+
+  static const _brandColors = <String, Color>{
+    'youtube':   Color(0xFFFF0000),
+    'instagram': Color(0xFFE1306C),
+    'threads':   Color(0xFF101010),
+    'tiktok':    Color(0xFFEE1D52),
+    'facebook':  Color(0xFF1877F2),
+    'twitter':   Color(0xFF000000),
+    'naver':     Color(0xFF03C75A),
+    'etc':       Color(0xFF607D8B),
+  };
+
+  Future<void> _open() async {
+    final uri = Uri.tryParse(item.url);
+    if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  // 마이룸 ClipCard와 동일 — 꾹 눌러서 옵션 표시
+  void _showOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 8),
+          Container(
+            width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ListTile(
+            leading: const Icon(Icons.open_in_new),
+            title: const Text('열기'),
+            onTap: () { Navigator.pop(context); _open(); },
+          ),
+          ListTile(
+            leading: const Icon(Icons.school_outlined),
+            title: const Text('큐레이션'),
+            onTap: () { Navigator.pop(context); onCurate(); },
+          ),
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('수정'),
+            onTap: () { Navigator.pop(context); onEdit(); },
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline, color: Colors.red),
+            title: const Text('삭제', style: TextStyle(color: Colors.red)),
+            onTap: () { Navigator.pop(context); onDelete(); },
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final cat = HubCategory.fromId(item.category);
+    final brandColor = _brandColors[item.category] ?? const Color(0xFF6C63FF);
+
     return Card(
-      child: InkWell(
-        onTap: () async {
-          final uri = Uri.tryParse(item.url);
-          if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
-        },
-        borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: GestureDetector(
+        onTap: _open,
+        onLongPress: () => _showOptions(context),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // 썸네일
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          // 썸네일 16:9 — 메뉴 없음 (꾹 눌러서 옵션)
+          AspectRatio(
+            aspectRatio: 16 / 9,
             child: item.displayThumbnail.isNotEmpty
                 ? CachedNetworkImage(
                     imageUrl: item.displayThumbnail,
-                    height: 110, width: double.infinity, fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => _Placeholder(item: item, height: 110),
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => _Placeholder(item: item),
                   )
-                : _Placeholder(item: item, height: 110),
+                : _Placeholder(item: item),
           ),
-          // 제목 + 메뉴
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 4, 8),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Expanded(
-                  child: Text('${cat.emoji} ${cat.label}',
-                      style: const TextStyle(
-                          fontSize: 10, color: Color(0xFF6C63FF),
-                          fontWeight: FontWeight.w600)),
-                ),
-                _Menu(onEdit: onEdit, onDelete: onDelete, onCurate: onCurate, iconSize: 16),
-              ]),
-              const SizedBox(height: 4),
-              Text(item.title,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-                  maxLines: 2, overflow: TextOverflow.ellipsis),
-            ]),
+          // 정보 영역 — Expanded로 카드 남은 공간 채움
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 5, 8, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 카테고리 배지 (마이룸 플랫폼 배지와 동일 스타일)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: brandColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${cat.emoji} ${cat.label}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: item.category == 'threads' || item.category == 'twitter'
+                            ? Colors.grey[700]
+                            : brandColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  // 제목 — 마이룸과 동일 스타일
+                  Text(
+                    item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ]),
       ),
@@ -303,8 +388,7 @@ class _SourceIcon extends StatelessWidget {
 // ── 공통 플레이스홀더 (Grid용) — 플랫폼별 브랜드 컬러 배경 ──────────
 class _Placeholder extends StatelessWidget {
   final LinkItem item;
-  final double height;
-  const _Placeholder({required this.item, this.height = 80});
+  const _Placeholder({required this.item});
 
   static const _bgColors = <String, Color>{
     'youtube':   Color(0x1FFF0000),
@@ -321,13 +405,10 @@ class _Placeholder extends StatelessWidget {
     final cat = HubCategory.fromId(item.category);
     final bg = _bgColors[item.category] ?? const Color(0xFFF0EFFF);
     return Container(
-      height: height, width: double.infinity,
+      width: double.infinity,
       color: bg,
       child: Center(
-        child: Text(
-          cat.emoji,
-          style: TextStyle(fontSize: height > 90 ? 36 : 26),
-        ),
+        child: Text(cat.emoji, style: const TextStyle(fontSize: 32)),
       ),
     );
   }
@@ -339,17 +420,20 @@ class _Menu extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onCurate;
   final double iconSize;
+  final Color? iconColor;
   const _Menu({
     required this.onEdit,
     required this.onDelete,
     required this.onCurate,
     this.iconSize = 18,
+    this.iconColor,
   });
 
   @override
   Widget build(BuildContext context) => PopupMenuButton<String>(
     iconSize: iconSize,
     padding: EdgeInsets.zero,
+    icon: Icon(Icons.more_vert, size: iconSize, color: iconColor),
     onSelected: (v) {
       if (v == 'curate') onCurate();
       if (v == 'edit')   onEdit();

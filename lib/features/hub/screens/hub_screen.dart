@@ -438,7 +438,7 @@ class _GridBody extends StatelessWidget {
       crossAxisCount: 2,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
-      childAspectRatio: 0.82,
+      childAspectRatio: 1.0,
     ),
     itemCount: items.length,
     itemBuilder: (_, i) => LinkCard(
