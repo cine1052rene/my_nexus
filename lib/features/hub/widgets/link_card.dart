@@ -237,15 +237,16 @@ class _GridCard extends StatelessWidget {
                   )
                 : _Placeholder(item: item),
           ),
-          // 정보 영역 — Stack: 배지+제목은 Column, 메뉴는 우상단 float
+          // 정보 영역
           Expanded(
-            child: Stack(
-              children: [
-                // 배지 + 제목 (Row 없이 → PopupMenu 48dp 터치타겟 영향 Zero)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 5, 36, 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 5, 0, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 배지 + ⋮ 메뉴: SizedBox로 메뉴 높이 고정 → Row 높이 = 배지 높이
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
@@ -264,30 +265,31 @@ class _GridCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        item.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          height: 1.3,
+                      const Spacer(),
+                      // SizedBox로 PopupMenuButton 48dp 터치타겟 차단 → 위치 고정
+                      SizedBox(
+                        width: 30,
+                        height: 24,
+                        child: _Menu(
+                          onEdit: onEdit, onDelete: onDelete, onCurate: onCurate,
+                          iconSize: 16,
                         ),
                       ),
                     ],
                   ),
-                ),
-                // ⋮ 메뉴 — 우상단에 float (Column 높이에 영향 없음)
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: _Menu(
-                    onEdit: onEdit, onDelete: onDelete, onCurate: onCurate,
-                    iconSize: 16,
+                  const SizedBox(height: 3),
+                  Text(
+                    item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ]),
