@@ -212,8 +212,8 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     ),
   );
 
-  void _confirmDelete(LinkItem item) {
-    showDialog<bool>(
+  Future<void> _confirmDelete(LinkItem item) async {
+    final ok = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         title: const Text('삭제'),
@@ -227,11 +227,10 @@ class _HubScreenState extends ConsumerState<HubScreen> {
               child: const Text('삭제', style: TextStyle(color: Colors.red))),
         ],
       ),
-    ).then((ok) {
-      if (ok == true && mounted) {
-        ref.read(hubNotifierProvider.notifier).deleteLink(item.id);
-      }
-    });
+    );
+    if (ok == true && mounted) {
+      ref.read(hubNotifierProvider.notifier).deleteLink(item.id);
+    }
   }
 
   // ── 카테고리 자동 감지 (출처별) ───────────────────────────────────
@@ -347,9 +346,8 @@ class _HubScreenState extends ConsumerState<HubScreen> {
             ScaffoldMessenger.of(context).hideCurrentSnackBar(),
         behavior: HitTestBehavior.translucent,
         child: NotificationListener<ScrollStartNotification>(
-          // 스크롤 시작 → 팝업 메뉴 닫힘 + 스낵바 닫힘
+          // 스크롤 시작 → 스낵바 닫힘
           onNotification: (_) {
-            Navigator.of(context).maybePop();
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
             return false;
           },
@@ -530,7 +528,7 @@ class _CategoryIconBar extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 3),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: isSelected ? color.withOpacity(0.12) : Colors.transparent,
+                color: isSelected ? color.withValues(alpha: 0.12) : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: _iconWidget(cat.id, isSelected),
