@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../features/hub/models/link_item.dart';
 import '../../features/calendar/models/schedule_event.dart';
 import '../../features/myroom/models/video_clip.dart';
+import '../../features/myroom/models/myroom_tag.dart';
 
 /// Firestore CRUD 서비스 + 사용량 추적
 class FirestoreService {
@@ -29,6 +30,9 @@ class FirestoreService {
 
   CollectionReference<Map<String, dynamic>> get _clipsCol =>
       _db.collection('video_clips');
+
+  DocumentReference<Map<String, dynamic>> get _myroomTagsDoc =>
+      _db.collection('settings').doc('myroom_tags');
 
   // ── 링크 허브 CRUD ──────────────────────────────────────────
   Stream<List<LinkItem>> linksStream({String? category}) {
@@ -137,6 +141,23 @@ class FirestoreService {
   Future<void> deleteClip(String id) async {
     await _clipsCol.doc(id).delete();
     _deletes++;
+  }
+
+  // ── 마이룸 태그 설정 ────────────────────────────────────────
+  Stream<List<MyroomTag>> myroomTagsStream() {
+    return _myroomTagsDoc.snapshots().map((snap) {
+      if (!snap.exists || snap.data() == null) return MyroomTag.defaults;
+      final raw = snap.data()!['tags'] as List<dynamic>?;
+      if (raw == null || raw.isEmpty) return MyroomTag.defaults;
+      return raw
+          .map((e) => MyroomTag.fromMap(e as Map<String, dynamic>))
+          .toList();
+    });
+  }
+
+  Future<void> saveMyroomTags(List<MyroomTag> tags) async {
+    await _myroomTagsDoc.set({'tags': tags.map((t) => t.toMap()).toList()});
+    _writes++;
   }
 
   // ── 사용량 리셋 ─────────────────────────────────────────────
