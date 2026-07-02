@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 유저 프로필 문서 — 본인 문서만 읽기/쓰기 가능
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // DB 허브 링크 — 로그인한 유저(=앱 소유자)만 접근 (싱글 유저 앱 데이터 모델)
+    match /links/{linkId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 캘린더 이벤트
+    match /events/{eventId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 마이룸 클립
+    match /video_clips/{clipId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 마이룸 태그 등 공용 설정 문서
+    match /settings/{settingId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 그 외 모든 문서는 기본 차단
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
