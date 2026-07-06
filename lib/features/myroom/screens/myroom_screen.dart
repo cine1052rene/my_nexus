@@ -186,7 +186,7 @@ class _MyroomScreenState extends ConsumerState<MyroomScreen> {
                     crossAxisCount: 2,
                     crossAxisSpacing: 8,
                     mainAxisSpacing: 8,
-                    childAspectRatio: 0.78,
+                    childAspectRatio: 1.0,
                   ),
                   itemCount: clips.length,
                   itemBuilder: (ctx, i) {

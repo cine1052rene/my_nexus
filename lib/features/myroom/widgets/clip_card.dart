@@ -134,14 +134,14 @@ class ClipCard extends StatelessWidget {
             ),
             // ── 정보 ──
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+              padding: const EdgeInsets.fromLTRB(8, 5, 8, 4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 플랫폼 배지
                   Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                     decoration: BoxDecoration(
                       color: platformColor.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(4),
@@ -157,7 +157,7 @@ class ClipCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   // 제목
                   Text(
                     clip.title,
