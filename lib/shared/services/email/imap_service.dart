@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:enough_mail/enough_mail.dart';
-import '../../features/email/models/email_message.dart';
-import '../../features/email/models/email_account.dart';
+import '../../../features/email/models/email_message.dart';
+import '../../../features/email/models/email_account.dart';
 
 /// IMAP 기반 외부 메일 서비스 (모바일 전용 — 웹에서는 비활성화)
 class ImapService {

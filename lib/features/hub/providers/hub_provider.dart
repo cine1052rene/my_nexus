@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/link_item.dart';
-import '../../../shared/services/firestore_service.dart';
+import '../../../shared/services/data/firestore_service.dart';
 import '../../../core/constants/app_constants.dart';
 
 // 선택된 카테고리 필터

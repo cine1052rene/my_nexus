@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../models/link_item.dart';
 import '../../myroom/providers/myroom_provider.dart';
-import '../../../shared/services/gemini_service.dart';
+import '../../../shared/services/ai/gemini_service.dart';
+import '../../../shared/services/ai/gemini_prompts.dart';
 
 class CurationSheet extends ConsumerStatefulWidget {
   final LinkItem item;
@@ -89,27 +90,11 @@ class _CurationSheetState extends ConsumerState<CurationSheet> {
     return '';
   }
 
-  String _buildPrompt(String description) => '''
-아래 콘텐츠를 지식·학습 목적으로 한국어로 요약해주세요.
-
-제목: ${widget.item.title}
-URL: ${widget.item.url}
-${description.isNotEmpty ? '설명:\n$description' : ''}
-
-다음 형식으로 작성해주세요 (마크다운):
-
-## 📌 핵심 요약
-• 핵심 내용 1
-• 핵심 내용 2
-• 핵심 내용 3
-(3~5개, 각 1~2문장)
-
-## 💡 주요 키워드
-#키워드1 #키워드2 #키워드3
-
-## 🔗 원본
-${widget.item.url}
-''';
+  String _buildPrompt(String description) => GeminiPrompts.curation(
+        title: widget.item.title,
+        url: widget.item.url,
+        description: description,
+      );
 
   // ── 마이룸 저장 ────────────────────────────────────────────────
   Future<void> _save() async {

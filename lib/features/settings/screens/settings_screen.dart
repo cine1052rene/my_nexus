@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/settings_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/tab_defs.dart';
-import '../../../shared/services/gemini_service.dart';
+import '../../../shared/services/ai/gemini_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});

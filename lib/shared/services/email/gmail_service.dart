@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../../features/email/models/email_message.dart';
-import '../../features/email/models/email_account.dart';
-import 'google_auth_service.dart';
+import '../../../features/email/models/email_message.dart';
+import '../../../features/email/models/email_account.dart';
+import '../auth/google_auth_service.dart';
 
 class GmailService {
   static const _base = 'https://www.googleapis.com/gmail/v1/users/me';

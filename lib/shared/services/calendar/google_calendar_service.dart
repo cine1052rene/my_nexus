@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../../features/calendar/models/schedule_event.dart';
-import 'google_auth_service.dart';
+import '../../../features/calendar/models/schedule_event.dart';
+import '../auth/google_auth_service.dart';
 
 class GoogleCalendarService {
   /// 구글 캘린더 권한 요청 (로그인 + calendar 스코프 증분 요청)

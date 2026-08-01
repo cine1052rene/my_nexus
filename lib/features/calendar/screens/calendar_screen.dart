@@ -4,7 +4,7 @@ import '../providers/calendar_provider.dart';
 import '../widgets/event_tile.dart';
 import '../data/korean_holidays.dart';
 import '../../../core/utils/lunar_converter.dart';
-import '../../../shared/services/google_calendar_service.dart';
+import '../../../shared/services/calendar/google_calendar_service.dart';
 import 'add_event_sheet.dart';
 
 class CalendarScreen extends ConsumerWidget {

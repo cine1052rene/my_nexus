@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/schedule_event.dart';
-import '../../../shared/services/firestore_service.dart';
-import '../../../shared/services/google_calendar_service.dart';
+import '../../../shared/services/data/firestore_service.dart';
+import '../../../shared/services/calendar/google_calendar_service.dart';
 
 // 선택된 날짜
 final selectedDayProvider = StateProvider<DateTime>((ref) => DateTime.now());

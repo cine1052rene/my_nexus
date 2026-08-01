@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/video_clip.dart';
 import '../models/myroom_tag.dart';
-import '../../../shared/services/firestore_service.dart';
+import '../../../shared/services/data/firestore_service.dart';
 
 // 검색어
 final myroomSearchProvider = StateProvider<String>((ref) => '');

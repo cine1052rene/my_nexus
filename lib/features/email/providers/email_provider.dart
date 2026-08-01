@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/email_message.dart';
 import '../models/email_account.dart';
-import '../../../shared/services/gmail_service.dart';
-import '../../../shared/services/imap_service.dart';
-import '../../../shared/services/email_ai_service.dart';
+import '../../../shared/services/email/gmail_service.dart';
+import '../../../shared/services/email/imap_service.dart';
+import '../../../shared/services/email/email_ai_service.dart';
 import '../../settings/providers/settings_provider.dart';
 
 // ── 계정 목록 ─────────────────────────────────────────────────────

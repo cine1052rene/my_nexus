@@ -2,8 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/chat_message.dart';
-import '../../../shared/services/gemini_service.dart';
-import '../../../shared/services/firestore_service.dart';
+import '../../../shared/services/ai/gemini_service.dart';
+import '../../../shared/services/ai/gemini_prompts.dart';
+import '../../../shared/services/data/firestore_service.dart';
 
 const freeDailyLimit = 30;
 
@@ -119,10 +120,7 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
       return parts.join('\n');
     }).join('\n\n');
 
-    final contextMsg =
-        '사용자의 DB허브 저장 링크 목록 (${links.length}개, 최신순):\n\n'
-        '$linksText\n\n'
-        '이 링크 목록을 기억하고, 사용자가 저장한 콘텐츠에 대해 질문하면 이 정보를 바탕으로 답변해주세요.';
+    final contextMsg = GeminiPrompts.hubContextInjection(linksText, links.length);
 
     _history.add({'role': 'user',  'parts': [{'text': contextMsg}]});
     _history.add({'role': 'model', 'parts': [{'text': 'DB허브 링크 ${links.length}개를 확인했습니다. 무엇이 궁금하신가요?'}]});

@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import '../../../shared/services/google_auth_service.dart';
+import '../../../shared/services/auth/google_auth_service.dart';
 
 // 현재 로그인 상태 스트림
 final authStateProvider = StreamProvider<User?>((ref) {
