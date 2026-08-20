@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/chat_message.dart';
+import '../services/chat_query_parser.dart';
+import '../services/chat_query_executor.dart';
+import '../../hub/models/link_item.dart';
 import '../../../shared/services/ai/gemini_service.dart';
 import '../../../shared/services/ai/gemini_prompts.dart';
 import '../../../shared/services/data/firestore_service.dart';
@@ -14,13 +17,15 @@ String _todayString() {
 }
 
 /// 오늘 사용한 챗봇 횟수 (날짜 바뀌면 자동 0)
+///
+/// 로컬 쿼리로 처리된 질문은 여기 포함되지 않는다 — 서버를 거치지
+/// 않으므로 한도를 소모하지 않는다.
 final chatDailyUsageProvider = StreamProvider<int>((ref) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value(0);
-  return FirebaseFirestore.instance
-      .doc('users/${user.uid}')
-      .snapshots()
-      .map((doc) {
+  return FirebaseFirestore.instance.doc('users/${user.uid}').snapshots().map((
+    doc,
+  ) {
     final data = doc.data() ?? {};
     final lastDate = data['lastUsageDate'] as String? ?? '';
     if (lastDate != _todayString()) return 0;
@@ -32,8 +37,12 @@ final chatDailyUsageProvider = StreamProvider<int>((ref) {
 final hubInjectedProvider = StateProvider<bool>((ref) => false);
 
 class ChatNotifier extends Notifier<List<ChatMessage>> {
-  /// Gemini 형식의 대화 히스토리 (Firebase Function으로 전송)
+  /// Gemini 형식의 대화 히스토리 (일반 대화용)
   final List<Map<String, dynamic>> _history = [];
+
+  /// 로컬 쿼리용 링크 캐시
+  List<LinkItem> _linkCache = const [];
+  DateTime? _cachedAt;
 
   @override
   List<ChatMessage> build() => [];
@@ -41,60 +50,168 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
   // 슬라이딩 윈도우: 최대 10턴(20 메시지) 유지 → 토큰 비용 절감
   static const int _maxHistoryTurns = 10;
 
+  /// 링크 캐시 유효 시간
+  static const Duration _cacheTtl = Duration(minutes: 5);
+
+  /// 한 번에 조회할 링크 최대 개수
+  static const int _linkFetchLimit = 300;
+
   List<Map<String, dynamic>> get _trimmedHistory {
     if (_history.length <= _maxHistoryTurns * 2) return List.from(_history);
     return List.from(_history.sublist(_history.length - _maxHistoryTurns * 2));
   }
 
+  /// 링크 목록 조회 (캐시 우선)
+  Future<List<LinkItem>> _links({bool forceRefresh = false}) async {
+    final fresh =
+        _cachedAt != null &&
+        DateTime.now().difference(_cachedAt!) < _cacheTtl &&
+        _linkCache.isNotEmpty;
+    if (!forceRefresh && fresh) return _linkCache;
+
+    _linkCache = await FirestoreService().getAllLinks(limit: _linkFetchLimit);
+    _cachedAt = DateTime.now();
+    return _linkCache;
+  }
+
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
-    // 사용자 메시지 추가
+    // 사용자 메시지 + 로딩 표시
     state = [
       ...state,
-      ChatMessage(text: text, role: MessageRole.user, timestamp: DateTime.now()),
-    ];
-
-    // 로딩 표시 (빈 bot 메시지)
-    state = [
-      ...state,
+      ChatMessage(
+        text: text,
+        role: MessageRole.user,
+        timestamp: DateTime.now(),
+      ),
       ChatMessage(text: '', role: MessageRole.bot, timestamp: DateTime.now()),
     ];
 
     try {
-      // Firebase Function 호출 (슬라이딩 윈도우 히스토리 전달)
+      final query = ChatQueryParser.parse(text);
+
+      // ── ① 로컬에서 완결 가능한 질문 (목록/개수/최근/검색) ──
+      // 네트워크 호출 없음 → 비용 0원, 한도 미차감, 환각 불가
+      if (query.isLocal) {
+        final result = ChatQueryExecutor.run(query, await _links());
+        _replaceLast(
+          ChatMessage(
+            text: result.text,
+            role: MessageRole.bot,
+            timestamp: DateTime.now(),
+            links: result.links,
+            isLocal: true,
+          ),
+        );
+        return;
+      }
+
+      // ── ② 요약·설명 요청: 관련 링크만 추려서 LLM에 전달 ──
+      // 전체 목록을 통째로 보내지 않으므로 토큰이 극적으로 줄어든다
+      if (query.needsLlm) {
+        final result = ChatQueryExecutor.run(query, await _links());
+        if (result.isEmpty) {
+          _replaceLast(
+            ChatMessage(
+              text: result.text,
+              role: MessageRole.bot,
+              timestamp: DateTime.now(),
+              isLocal: true,
+            ),
+          );
+          return;
+        }
+        final answer = await GeminiService.chat(
+          prompt: GeminiPrompts.hubSummarize(
+            question: text,
+            linksText: _formatLinks(result.links),
+          ),
+          history: const [],
+        );
+        _replaceLast(
+          ChatMessage(
+            text: answer,
+            role: MessageRole.bot,
+            timestamp: DateTime.now(),
+            links: result.links,
+          ),
+        );
+        return;
+      }
+
+      // ── ③ 일반 대화 → 기존 LLM 경로 ──
       final answer = await GeminiService.chat(
         prompt: text,
         history: _trimmedHistory,
       );
+      _history.add({
+        'role': 'user',
+        'parts': [
+          {'text': text},
+        ],
+      });
+      _history.add({
+        'role': 'model',
+        'parts': [
+          {'text': answer},
+        ],
+      });
 
-      // 히스토리 업데이트
-      _history.add({'role': 'user',  'parts': [{'text': text}]});
-      _history.add({'role': 'model', 'parts': [{'text': answer}]});
-
-      // 로딩 → 응답으로 교체
-      final updated = List<ChatMessage>.from(state);
-      updated[updated.length - 1] = ChatMessage(
-        text: answer,
-        role: MessageRole.bot,
-        timestamp: DateTime.now(),
+      _replaceLast(
+        ChatMessage(
+          text: answer,
+          role: MessageRole.bot,
+          timestamp: DateTime.now(),
+        ),
       );
-      state = updated;
     } catch (e) {
-      final updated = List<ChatMessage>.from(state);
-      updated[updated.length - 1] = ChatMessage(
-        text: '오류가 발생했어요: ${e.toString()}',
-        role: MessageRole.bot,
-        timestamp: DateTime.now(),
-        isError: true,
+      _replaceLast(
+        ChatMessage(
+          text: '오류가 발생했어요: ${e.toString()}',
+          role: MessageRole.bot,
+          timestamp: DateTime.now(),
+          isError: true,
+        ),
       );
-      state = updated;
     }
   }
 
-  /// DB허브 링크 목록을 AI 컨텍스트로 주입
+  /// 마지막(로딩 중) 메시지를 실제 응답으로 교체
+  void _replaceLast(ChatMessage msg) {
+    if (state.isEmpty) return;
+    final updated = List<ChatMessage>.from(state);
+    updated[updated.length - 1] = msg;
+    state = updated;
+  }
+
+  /// LLM에 넘길 링크 텍스트 포맷 (요약 요청 시에만 사용)
+  static String _formatLinks(List<LinkItem> links) {
+    return links
+        .map((l) {
+          final parts = <String>[
+            '[${l.category}] ${l.title}',
+            '  URL: ${l.url}',
+          ];
+          if (l.summary != null && l.summary!.isNotEmpty) {
+            parts.add('  요약: ${l.summary}');
+          }
+          if (l.notes != null && l.notes!.isNotEmpty) {
+            parts.add('  메모: ${l.notes}');
+          }
+          if (l.tags.isNotEmpty) parts.add('  태그: ${l.tags.join(', ')}');
+          return parts.join('\n');
+        })
+        .join('\n\n');
+  }
+
+  /// DB허브 연동 — 링크를 미리 불러와 캐시에 채운다.
+  ///
+  /// 예전에는 링크 전체를 대화 히스토리에 주입했으나, 슬라이딩 윈도우가
+  /// 10턴 뒤 그 내용을 잘라내면서 봇이 없는 링크를 지어내는 문제가 있었다.
+  /// 이제는 히스토리를 오염시키지 않고 로컬 캐시만 갱신한다.
   Future<void> injectHubContext() async {
-    final links = await FirestoreService().getAllLinks();
+    final links = await _links(forceRefresh: true);
 
     if (links.isEmpty) {
       state = [
@@ -103,31 +220,14 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           text: 'DB허브에 저장된 링크가 없어요.\n먼저 링크를 저장해보세요!',
           role: MessageRole.bot,
           timestamp: DateTime.now(),
+          isLocal: true,
         ),
       ];
       return;
     }
 
-    // 링크를 텍스트로 포맷팅 (AI가 이해하기 좋은 구조)
-    final linksText = links.map((l) {
-      final parts = <String>['[${l.category}] ${l.title}', '  URL: ${l.url}'];
-      if (l.notes != null && l.notes!.isNotEmpty) {
-        parts.add('  메모: ${l.notes}');
-      }
-      if (l.tags.isNotEmpty) {
-        parts.add('  태그: ${l.tags.join(', ')}');
-      }
-      return parts.join('\n');
-    }).join('\n\n');
-
-    final contextMsg = GeminiPrompts.hubContextInjection(linksText, links.length);
-
-    _history.add({'role': 'user',  'parts': [{'text': contextMsg}]});
-    _history.add({'role': 'model', 'parts': [{'text': 'DB허브 링크 ${links.length}개를 확인했습니다. 무엇이 궁금하신가요?'}]});
-
     ref.read(hubInjectedProvider.notifier).state = true;
 
-    // UI에 연동 완료 안내 메시지
     final cats = <String, int>{};
     for (final l in links) {
       cats[l.category] = (cats[l.category] ?? 0) + 1;
@@ -139,22 +239,32 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     state = [
       ...state,
       ChatMessage(
-        text: '📚 DB허브 ${links.length}개 링크 연동 완료!\n($catSummary)\n\n이런 걸 물어보세요:\n• "유튜브 링크 목록 보여줘"\n• "최근 저장한 거 요약해줘"\n• "인스타 링크 몇 개야?"\n• "테크 관련 링크 찾아줘"',
+        text:
+            '📚 DB허브 ${links.length}개 링크 연동 완료!\n($catSummary)\n\n'
+            '이런 걸 물어보세요:\n'
+            '• "유튜브 링크 목록 보여줘"\n'
+            '• "최근 저장한 링크 알려줘"\n'
+            '• "인스타 링크 몇 개야?"\n'
+            '• "요리 관련 링크 찾아줘"',
         role: MessageRole.bot,
         timestamp: DateTime.now(),
+        isLocal: true,
       ),
     ];
   }
 
   void reset() {
     _history.clear();
+    _linkCache = const [];
+    _cachedAt = null;
     state = [];
     ref.read(hubInjectedProvider.notifier).state = false;
   }
 }
 
-final chatProvider =
-    NotifierProvider<ChatNotifier, List<ChatMessage>>(ChatNotifier.new);
+final chatProvider = NotifierProvider<ChatNotifier, List<ChatMessage>>(
+  ChatNotifier.new,
+);
 
 final isChatLoadingProvider = Provider<bool>((ref) {
   final msgs = ref.watch(chatProvider);

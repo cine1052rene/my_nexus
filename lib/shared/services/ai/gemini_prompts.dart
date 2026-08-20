@@ -15,7 +15,8 @@ class GeminiPrompts {
     required String title,
     required String url,
     required String description,
-  }) => '''
+  }) =>
+      '''
 아래 콘텐츠를 지식·학습 목적으로 한국어로 요약해주세요.
 
 제목: $title
@@ -42,7 +43,8 @@ $url
   static String emailClassify({
     required String subject,
     required String snippet,
-  }) => '''
+  }) =>
+      '''
 다음 이메일을 딱 한 단어로 분류하세요. (work / personal / newsletter / notification / other)
 - work: 업무, 미팅, 계약, 청구서, 프로젝트
 - personal: 지인, 가족, 친구, 개인 연락
@@ -61,7 +63,9 @@ $url
     required String subject,
     required String body,
   }) {
-    final truncated = body.length > 3000 ? '${body.substring(0, 3000)}...' : body;
+    final truncated = body.length > 3000
+        ? '${body.substring(0, 3000)}...'
+        : body;
     return '''
 이메일을 2~3줄로 요약하세요. 핵심 내용과 요청/액션 아이템 위주로.
 
@@ -72,12 +76,26 @@ $truncated
 요약:''';
   }
 
-  /// 챗봇에 DB허브 링크 목록을 컨텍스트로 주입할 때 보내는 메시지
-  /// [chat_provider.dart]의 injectHubContext()에서 사용
-  static String hubContextInjection(String linksText, int count) => '''
-사용자의 DB허브 저장 링크 목록 ($count개, 최신순):
+  /// DB허브 링크 요약·설명 요청 프롬프트
+  /// [chat_provider.dart]의 sendMessage()에서 summarize 의도일 때 사용
+  ///
+  /// 예전 hubContextInjection()은 저장된 링크 **전체**를 대화 히스토리에
+  /// 주입해서 매 메시지마다 재전송됐고(토큰 낭비), 슬라이딩 윈도우가
+  /// 이를 잘라내면 봇이 없는 링크를 지어냈다. 이제는 로컬 쿼리로 추려낸
+  /// 소수의 링크만 그때그때 담아 보낸다.
+  static String hubSummarize({
+    required String question,
+    required String linksText,
+  }) =>
+      '''
+아래는 사용자가 저장해 둔 링크 목록입니다.
 
 $linksText
 
-이 링크 목록을 기억하고, 사용자가 저장한 콘텐츠에 대해 질문하면 이 정보를 바탕으로 답변해주세요.''';
+위 목록만 근거로 사용자의 요청에 답해주세요.
+- 목록에 없는 링크나 내용을 지어내지 마세요.
+- 정보가 부족하면 부족하다고 솔직히 말해주세요.
+- 한국어로 간결하게 작성해주세요.
+
+사용자 요청: $question''';
 }

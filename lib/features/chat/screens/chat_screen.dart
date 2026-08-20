@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/chat_provider.dart';
 import '../models/chat_message.dart';
+import '../widgets/chat_link_list.dart';
 import '../../settings/providers/settings_provider.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -56,13 +57,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final messages    = ref.watch(chatProvider);
-    final isLoading   = ref.watch(isChatLoadingProvider);
+    final messages = ref.watch(chatProvider);
+    final isLoading = ref.watch(isChatLoadingProvider);
     final hubInjected = ref.watch(hubInjectedProvider);
-    final apiKey      = ref.watch(geminiApiKeyProvider).valueOrNull ?? '';
+    final apiKey = ref.watch(geminiApiKeyProvider).valueOrNull ?? '';
     final isUnlimited = apiKey.isNotEmpty;
-    final usedToday   = ref.watch(chatDailyUsageProvider).valueOrNull ?? 0;
-    final remaining   = (freeDailyLimit - usedToday).clamp(0, freeDailyLimit);
+    final usedToday = ref.watch(chatDailyUsageProvider).valueOrNull ?? 0;
+    final remaining = (freeDailyLimit - usedToday).clamp(0, freeDailyLimit);
 
     // 새 메시지 오면 스크롤
     ref.listen(chatProvider, (prev, next) => _scrollToBottom());
@@ -80,22 +81,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 color: isUnlimited
                     ? Colors.green.shade50
                     : remaining <= 5
-                        ? Colors.red.shade50
-                        : Colors.grey.shade100,
+                    ? Colors.red.shade50
+                    : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                isUnlimited
-                    ? '무제한'
-                    : '$remaining회 남음',
+                isUnlimited ? '무제한' : '$remaining회 남음',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: isUnlimited
                       ? Colors.green.shade700
                       : remaining <= 5
-                          ? Colors.red.shade600
-                          : Colors.grey[600],
+                      ? Colors.red.shade600
+                      : Colors.grey[600],
                 ),
               ),
             ),
@@ -117,7 +116,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               message: hubInjected ? 'DB허브 연동됨 (다시 연동)' : 'DB허브 연동',
               child: IconButton(
                 icon: Icon(
-                  hubInjected ? Icons.library_books : Icons.library_books_outlined,
+                  hubInjected
+                      ? Icons.library_books
+                      : Icons.library_books_outlined,
                   color: hubInjected ? const Color(0xFF6C63FF) : null,
                 ),
                 onPressed: _injectHub,
@@ -164,7 +165,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         title: const Text('대화 초기화'),
         content: const Text('대화 내용을 모두 지울까요?\nDB허브 연동도 해제됩니다.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('초기화', style: TextStyle(color: Colors.red)),
@@ -188,11 +192,43 @@ class _EmptyState extends StatelessWidget {
         children: [
           const Text('🤖', style: TextStyle(fontSize: 56)),
           const SizedBox(height: 16),
-          const Text('무엇이든 물어보세요',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const Text(
+            '무엇이든 물어보세요',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 8),
-          Text('Gemini 2.5 Flash 기반 챗봇',
-              style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+          Text(
+            '저장한 링크 조회는 기기에서 바로 처리돼요',
+            style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '"유튜브 링크 보여줘" · "인스타 몇 개야?"',
+            style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── 로컬 처리 뱃지 ───────────────────────────────────────────
+class _LocalBadge extends StatelessWidget {
+  const _LocalBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, left: 38),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.offline_bolt_outlined, size: 11, color: Colors.grey[400]),
+          const SizedBox(width: 3),
+          Text(
+            '기기에서 즉시 처리 (AI 사용 안 함)',
+            style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+          ),
         ],
       ),
     );
@@ -211,63 +247,76 @@ class _MessageBubble extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (!isUser) ...[
-            Container(
-              width: 30,
-              height: 30,
-              decoration: const BoxDecoration(
-                color: Color(0xFF6C63FF),
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Text('🤖', style: TextStyle(fontSize: 14)),
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isUser
-                    ? const Color(0xFF6C63FF)
-                    : msg.isError
-                        ? Colors.red.shade50
-                        : const Color(0xFFF2F2F7),
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: Radius.circular(isUser ? 18 : 4),
-                  bottomRight: Radius.circular(isUser ? 4 : 18),
-                ),
-              ),
-              child: isLoading
-                  ? const SizedBox(
-                      width: 40,
-                      height: 16,
-                      child: _TypingIndicator(),
-                    )
-                  : Text(
-                      msg.text,
-                      style: TextStyle(
-                        color: isUser
-                            ? Colors.white
-                            : msg.isError
-                                ? Colors.red[700]
-                                : Colors.black87,
-                        fontSize: 14,
-                        height: 1.5,
-                      ),
-                    ),
-            ),
-          ),
-          if (isUser) const SizedBox(width: 8),
+          _bubbleRow(isUser, isLoading),
+          if (msg.isLocal && !isLoading) const _LocalBadge(),
+          if (msg.hasLinks) ChatLinkList(links: msg.links),
         ],
       ),
+    );
+  }
+
+  Widget _bubbleRow(bool isUser, bool isLoading) {
+    return Row(
+      mainAxisAlignment: isUser
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (!isUser) ...[
+          Container(
+            width: 30,
+            height: 30,
+            decoration: const BoxDecoration(
+              color: Color(0xFF6C63FF),
+              shape: BoxShape.circle,
+            ),
+            child: const Center(
+              child: Text('🤖', style: TextStyle(fontSize: 14)),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        Flexible(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: isUser
+                  ? const Color(0xFF6C63FF)
+                  : msg.isError
+                  ? Colors.red.shade50
+                  : const Color(0xFFF2F2F7),
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(18),
+                topRight: const Radius.circular(18),
+                bottomLeft: Radius.circular(isUser ? 18 : 4),
+                bottomRight: Radius.circular(isUser ? 4 : 18),
+              ),
+            ),
+            child: isLoading
+                ? const SizedBox(
+                    width: 40,
+                    height: 16,
+                    child: _TypingIndicator(),
+                  )
+                : Text(
+                    msg.text,
+                    style: TextStyle(
+                      color: isUser
+                          ? Colors.white
+                          : msg.isError
+                          ? Colors.red[700]
+                          : Colors.black87,
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
+                  ),
+          ),
+        ),
+        if (isUser) const SizedBox(width: 8),
+      ],
     );
   }
 }
@@ -287,8 +336,10 @@ class _TypingIndicatorState extends State<_TypingIndicator>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
-      ..repeat();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
   }
 
   @override
@@ -305,12 +356,18 @@ class _TypingIndicatorState extends State<_TypingIndicator>
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (i) {
-            final opacity = (((_ctrl.value * 3 - i) % 1.0) * 2 - 1).abs().clamp(0.2, 1.0);
+            final opacity = (((_ctrl.value * 3 - i) % 1.0) * 2 - 1).abs().clamp(
+              0.2,
+              1.0,
+            );
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
               child: Opacity(
                 opacity: opacity,
-                child: const CircleAvatar(radius: 4, backgroundColor: Color(0xFF6C63FF)),
+                child: const CircleAvatar(
+                  radius: 4,
+                  backgroundColor: Color(0xFF6C63FF),
+                ),
               ),
             );
           }),
@@ -335,7 +392,12 @@ class _InputBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).viewInsets.bottom + 12),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        8,
+        16,
+        MediaQuery.of(context).viewInsets.bottom + 12,
+      ),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(top: BorderSide(color: Color(0xFFEEEEF5))),
@@ -353,7 +415,10 @@ class _InputBar extends StatelessWidget {
                 hintText: '메시지를 입력하세요...',
                 filled: true,
                 fillColor: const Color(0xFFF2F2F7),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
