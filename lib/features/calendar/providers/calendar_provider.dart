@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/schedule_event.dart';
 import '../../../shared/services/data/firestore_service.dart';
 import '../../../shared/services/calendar/google_calendar_service.dart';
+import '../../auth/providers/auth_provider.dart';
 
 // 선택된 날짜
 final selectedDayProvider = StateProvider<DateTime>((ref) => DateTime.now());
@@ -28,9 +29,11 @@ final googleCalendarEventsProvider =
 );
 
 // 전체 이벤트 스트림
-final eventsStreamProvider = StreamProvider<List<ScheduleEvent>>(
-  (ref) => FirestoreService().eventsStream(),
-);
+// currentUserProvider watch — 계정 전환 시 재구독 (이전 사용자 데이터 잔류 방지)
+final eventsStreamProvider = StreamProvider<List<ScheduleEvent>>((ref) {
+  ref.watch(currentUserProvider);
+  return FirestoreService().eventsStream();
+});
 
 // 특정 날짜의 이벤트 목록
 final dayEventsProvider = Provider.family<List<ScheduleEvent>, DateTime>((ref, day) {

@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/chat_message.dart';
 import '../services/chat_query_parser.dart';
 import '../services/chat_query_executor.dart';
 import '../../hub/models/link_item.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../../shared/services/ai/gemini_service.dart';
 import '../../../shared/services/ai/gemini_prompts.dart';
 import '../../../shared/services/data/firestore_service.dart';
@@ -21,7 +21,8 @@ String _todayString() {
 /// 로컬 쿼리로 처리된 질문은 여기 포함되지 않는다 — 서버를 거치지
 /// 않으므로 한도를 소모하지 않는다.
 final chatDailyUsageProvider = StreamProvider<int>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
+  // 계정 전환 시 새 사용자 문서를 구독하도록 watch
+  final user = ref.watch(currentUserProvider);
   if (user == null) return Stream.value(0);
   return FirebaseFirestore.instance.doc('users/${user.uid}').snapshots().map((
     doc,
@@ -44,8 +45,19 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
   List<LinkItem> _linkCache = const [];
   DateTime? _cachedAt;
 
+  /// 캐시를 만든 사용자 uid. 계정이 바뀌면 이전 사용자의 링크가
+  /// TTL 동안 남아 보이므로 반드시 함께 검사한다.
+  String? _cachedUid;
+
   @override
-  List<ChatMessage> build() => [];
+  List<ChatMessage> build() {
+    // 계정이 바뀌면(로그아웃 포함) 이전 사용자의 대화 내용과 링크 캐시가
+    // 남지 않도록 전부 초기화한다.
+    ref.watch(currentUserProvider);
+    _history.clear();
+    _clearCache();
+    return [];
+  }
 
   // 슬라이딩 윈도우: 최대 10턴(20 메시지) 유지 → 토큰 비용 절감
   static const int _maxHistoryTurns = 10;
@@ -63,15 +75,32 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
 
   /// 링크 목록 조회 (캐시 우선)
   Future<List<LinkItem>> _links({bool forceRefresh = false}) async {
+    final service = FirestoreService();
+    final uid = service.currentUid;
+
+    // 로그아웃 상태면 캐시를 비우고 빈 목록을 돌려준다
+    if (uid == null) {
+      _clearCache();
+      return const [];
+    }
+
     final fresh =
+        _cachedUid == uid &&
         _cachedAt != null &&
         DateTime.now().difference(_cachedAt!) < _cacheTtl &&
         _linkCache.isNotEmpty;
     if (!forceRefresh && fresh) return _linkCache;
 
-    _linkCache = await FirestoreService().getAllLinks(limit: _linkFetchLimit);
+    _linkCache = await service.getAllLinks(limit: _linkFetchLimit);
     _cachedAt = DateTime.now();
+    _cachedUid = uid;
     return _linkCache;
+  }
+
+  void _clearCache() {
+    _linkCache = const [];
+    _cachedAt = null;
+    _cachedUid = null;
   }
 
   Future<void> sendMessage(String text) async {
@@ -255,8 +284,7 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
 
   void reset() {
     _history.clear();
-    _linkCache = const [];
-    _cachedAt = null;
+    _clearCache();
     state = [];
     ref.read(hubInjectedProvider.notifier).state = false;
   }

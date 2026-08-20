@@ -38,3 +38,10 @@ Thumbs.db
 
 # Playwright MCP logs (may contain API keys)
 .playwright-mcp/
+
+# Firestore 백업/마이그레이션 산출물 — 사용자 데이터 포함, 커밋 금지
+firestore-backup-*.json
+.migrate_tmp.js
+.verify_tmp.js
+.backup_tmp.js
+.worklog_tmp.js

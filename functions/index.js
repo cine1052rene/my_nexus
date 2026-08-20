@@ -122,15 +122,20 @@ exports.callGemini = onCall(
 );
 
 /**
- * 계정 및 모든 데이터 삭제 (Google Play 정책 필수)
- * - users/{uid} 문서 삭제
- * - Firebase Auth 계정 삭제
- * (링크·이벤트·클립은 uid 필드 추가 후 마이그레이션 시 일괄 삭제 예정)
+ * 계정 및 모든 데이터 영구 삭제 (Google Play 정책 필수)
+ *
+ * users/{uid} 문서와 그 **하위 서브컬렉션 전체**(links, events,
+ * video_clips, settings)를 재귀적으로 지운 뒤 Auth 계정을 삭제한다.
+ *
+ * 이전 버전은 users/{uid} 문서 하나만 지웠다. 당시 링크·일정·클립이
+ * 소유자 식별자 없는 전역 컬렉션이라 애초에 지울 수가 없었기 때문인데,
+ * 그 상태로는 "모든 사용자 데이터 삭제"라는 Play 정책을 충족하지 못한다.
+ * 데이터를 users/{uid} 하위로 옮기면서 재귀 삭제가 가능해졌다.
  */
 exports.deleteUserAccount = onCall(
   {
-    timeoutSeconds: 60,
-    memory: "256MiB",
+    timeoutSeconds: 300,
+    memory: "512MiB",
     region: LOCATION,
   },
   async (request) => {
@@ -142,15 +147,16 @@ exports.deleteUserAccount = onCall(
     const db = admin.firestore();
 
     try {
-      // 1. users 문서 삭제
-      await db.collection("users").doc(uid).delete();
+      // 1. users/{uid} 문서 + 모든 서브컬렉션 재귀 삭제
+      await db.recursiveDelete(db.collection("users").doc(uid));
 
       // 2. Firebase Auth 계정 삭제
       await admin.auth().deleteUser(uid);
 
+      console.log(`계정 삭제 완료: ${uid}`);
       return { success: true };
     } catch (e) {
-      console.error("deleteUserAccount error:", e.message);
+      console.error("deleteUserAccount error:", e.message, e.stack);
       throw new HttpsError("internal", `계정 삭제 오류: ${e.message}`);
     }
   }

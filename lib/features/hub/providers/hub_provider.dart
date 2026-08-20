@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/link_item.dart';
 import '../../../shared/services/data/firestore_service.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../auth/providers/auth_provider.dart';
 
 // 선택된 카테고리 필터
 final hubCategoryProvider = StateProvider<String>((ref) => 'all');
@@ -17,9 +18,15 @@ final hubViewModeProvider = StateProvider<HubViewMode>((ref) => HubViewMode.list
 final hubYoutubeKeywordProvider = StateProvider<String?>((ref) => null);
 
 // 링크 스트림 (Firestore 실시간)
-final linksStreamProvider = StreamProvider.family<List<LinkItem>, String>(
-  (ref, category) => FirestoreService().linksStream(category: category),
-);
+// currentUserProvider를 watch해야 계정 전환 시 스트림이 새 사용자 경로로
+// 다시 만들어진다. 안 하면 이전 사용자의 링크가 화면에 계속 남는다.
+final linksStreamProvider = StreamProvider.family<List<LinkItem>, String>((
+  ref,
+  category,
+) {
+  ref.watch(currentUserProvider);
+  return FirestoreService().linksStream(category: category);
+});
 
 // 필터링된 링크 목록 (검색 + 유튜브 키워드 인메모리 필터)
 final filteredLinksProvider = Provider<AsyncValue<List<LinkItem>>>((ref) {

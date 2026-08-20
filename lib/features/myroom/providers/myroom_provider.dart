@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/video_clip.dart';
 import '../models/myroom_tag.dart';
 import '../../../shared/services/data/firestore_service.dart';
+import '../../auth/providers/auth_provider.dart';
 
 // 검색어
 final myroomSearchProvider = StateProvider<String>((ref) => '');
@@ -11,14 +12,17 @@ final myroomSearchProvider = StateProvider<String>((ref) => '');
 final myroomSelectedTagProvider = StateProvider<String?>((ref) => null);
 
 // 사용자 커스텀 태그 목록 (Firestore, 없으면 기본값)
-final myroomTagsProvider = StreamProvider<List<MyroomTag>>(
-  (ref) => FirestoreService().myroomTagsStream(),
-);
+// currentUserProvider watch — 계정 전환 시 재구독 (이전 사용자 데이터 잔류 방지)
+final myroomTagsProvider = StreamProvider<List<MyroomTag>>((ref) {
+  ref.watch(currentUserProvider);
+  return FirestoreService().myroomTagsStream();
+});
 
 // 클립 스트림 (전체)
-final clipsStreamProvider = StreamProvider<List<VideoClip>>(
-  (ref) => FirestoreService().clipsStream(),
-);
+final clipsStreamProvider = StreamProvider<List<VideoClip>>((ref) {
+  ref.watch(currentUserProvider);
+  return FirestoreService().clipsStream();
+});
 
 // 필터링된 클립 목록
 final filteredClipsProvider = Provider<AsyncValue<List<VideoClip>>>((ref) {
