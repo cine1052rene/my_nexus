@@ -8,8 +8,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// - API 키 설정됨: Google AI Studio 직접 호출 (사용자 자체 쿼터, 무제한)
 class GeminiService {
   static const _keyPref = 'gemini_api_key';
+
+  /// 서버(Functions)의 Vertex AI 모델과 동일하게 유지할 것.
+  /// 달라지면 BYOK 사용자만 다른 모델로 다른 품질의 답변을 받게 된다.
+  static const _model = 'gemini-2.5-flash';
   static const _directUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+      'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent';
 
   static final _callable =
       FirebaseFunctions.instanceFor(region: 'asia-northeast3').httpsCallable(
