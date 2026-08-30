@@ -48,6 +48,17 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
+
+# 앱 아이콘 생성 설정 — 변경 후 `dart run flutter_launcher_icons` 실행
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/icon.png"
+  # 적응형 아이콘: 단색 배경 + 마크만 있는 전경 (시스템이 그림자를 따로 얹으므로 전경엔 그림자 없음)
+  adaptive_icon_background: "#6C2780"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
