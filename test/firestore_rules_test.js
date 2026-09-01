@@ -40,6 +40,14 @@ const cases = [
  ['ALLOW','내 설정 문서 쓰기','update',`${P}/users/u1/settings/myroom_tags`,auth('u1'),{tags:['a']},{tags:[]}],
  ['ALLOW','깊은 중첩 하위문서','get',`${P}/users/u1/links/L1/notes/N1`,auth('u1'),null,{t:'x'}],
  ['DENY','남의 설정 쓰기','update',`${P}/users/u2/settings/myroom_tags`,auth('u1'),{tags:['h']},{tags:[]}],
+ // ── 무료 한도 설정 문서 ──
+ ['ALLOW','한도 설정 읽기(로그인)','get',`${P}/config/limits`,auth('u1'),null,{dailyFree:10,monthlyFree:100}],
+ ['DENY','한도 설정 읽기(미로그인)','get',`${P}/config/limits`,null,null,{dailyFree:10,monthlyFree:100}],
+ ['DENY','한도 상향 조작','update',`${P}/config/limits`,auth('u1'),{dailyFree:99999,monthlyFree:99999},{dailyFree:10,monthlyFree:100}],
+ ['DENY','한도 문서 삭제','delete',`${P}/config/limits`,auth('u1'),null,{dailyFree:10,monthlyFree:100}],
+ // ── 월간 사용량 필드 보호 ──
+ ['DENY','monthlyUsage 리셋 시도','update',`${P}/users/u1`,auth('u1'),{...base,monthlyUsage:0},{...base,monthlyUsage:80,lastUsageMonth:'2026-09'}],
+ ['DENY','lastUsageMonth 조작','update',`${P}/users/u1`,auth('u1'),{...base,lastUsageMonth:'1999-01'},{...base,monthlyUsage:80,lastUsageMonth:'2026-09'}],
 ];
 
 const testSuite = {testCases: cases.map(([exp,,m,docPath,a,newData,oldData])=>{

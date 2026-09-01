@@ -7,8 +7,47 @@ admin.initializeApp();
 const PROJECT_ID = "my-nexus-hub";
 const LOCATION = "asia-northeast3"; // 서울 리전
 
-// 무료 유저 일일 메시지 한도
-const FREE_DAILY_LIMIT = 30;
+// ── 무료 한도 설정 ────────────────────────────────────────────
+//
+// 한도는 Firestore `config/limits` 문서가 단일 기준이다.
+// 코드에 박아두면 숫자를 바꿀 때마다 서버 배포 + 앱 업데이트가 필요하고,
+// 업데이트하지 않은 사용자는 화면에 표시되는 잔여 횟수와 실제 차단 시점이
+// 어긋나 버그로 인식한다. 문서로 빼두면 콘솔에서 숫자만 바꿔도
+// 서버와 앱이 동시에 따라온다.
+//
+// 문서가 없거나 읽기에 실패하면 아래 기본값으로 **막는 쪽**으로 동작한다.
+// (설정을 못 읽었다고 무제한으로 열어주면 그게 곧 우회 경로다)
+const DEFAULT_LIMITS = { dailyFree: 10, monthlyFree: 100 };
+
+// Functions 인스턴스는 호출 간 재사용되므로 짧게 캐시해 매 호출 읽기를 줄인다.
+const LIMITS_CACHE_MS = 60 * 1000;
+let _limitsCache = null;
+let _limitsCachedAt = 0;
+
+async function getLimits() {
+  const now = Date.now();
+  if (_limitsCache && now - _limitsCachedAt < LIMITS_CACHE_MS) {
+    return _limitsCache;
+  }
+  try {
+    const snap = await admin.firestore().doc("config/limits").get();
+    const d = snap.exists ? snap.data() : {};
+    _limitsCache = {
+      dailyFree: Number.isFinite(d.dailyFree)
+        ? d.dailyFree
+        : DEFAULT_LIMITS.dailyFree,
+      monthlyFree: Number.isFinite(d.monthlyFree)
+        ? d.monthlyFree
+        : DEFAULT_LIMITS.monthlyFree,
+    };
+    _limitsCachedAt = now;
+  } catch (e) {
+    console.error("limits 문서 읽기 실패, 기본값 사용:", e.message);
+    _limitsCache = { ...DEFAULT_LIMITS };
+    _limitsCachedAt = now;
+  }
+  return _limitsCache;
+}
 
 /**
  * Gemini AI 프록시 함수 (Vertex AI IAM 방식 — API 키 불필요)
@@ -39,6 +78,8 @@ exports.callGemini = onCall(
     const uid = request.auth.uid;
     const userRef = admin.firestore().collection("users").doc(uid);
 
+    const limits = await getLimits();
+
     try {
       await admin.firestore().runTransaction(async (tx) => {
         const userDoc = await tx.get(userRef);
@@ -48,17 +89,36 @@ exports.callGemini = onCall(
         if (isPremium) return;
 
         const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-        const lastDate = data?.lastUsageDate || "";
-        const dailyCount = lastDate === today ? (data?.dailyUsage || 0) : 0;
+        const month = today.slice(0, 7); // YYYY-MM
 
-        if (dailyCount >= FREE_DAILY_LIMIT) {
+        const lastDate = data?.lastUsageDate || "";
+        const lastMonth = data?.lastUsageMonth || "";
+        const dailyCount = lastDate === today ? (data?.dailyUsage || 0) : 0;
+        const monthlyCount =
+          lastMonth === month ? (data?.monthlyUsage || 0) : 0;
+
+        if (dailyCount >= limits.dailyFree) {
           throw new HttpsError(
             "resource-exhausted",
-            `일일 무료 사용량(${FREE_DAILY_LIMIT}회)을 초과했어요. 내일 다시 사용해주세요.`
+            `오늘 무료 사용량(${limits.dailyFree}회)을 다 썼어요. 내일 다시 사용할 수 있어요.`
           );
         }
 
-        const usage = { dailyUsage: dailyCount + 1, lastUsageDate: today };
+        // 일일 한도만으로는 최악의 경우(매일 한도를 채우는 사용자)를 막지
+        // 못한다. 월 상한이 있어야 사용자당 비용에 실제 천장이 생긴다.
+        if (monthlyCount >= limits.monthlyFree) {
+          throw new HttpsError(
+            "resource-exhausted",
+            `이번 달 무료 사용량(${limits.monthlyFree}회)을 다 썼어요. 다음 달에 다시 사용할 수 있어요.`
+          );
+        }
+
+        const usage = {
+          dailyUsage: dailyCount + 1,
+          lastUsageDate: today,
+          monthlyUsage: monthlyCount + 1,
+          lastUsageMonth: month,
+        };
 
         if (userDoc.exists) {
           tx.update(userRef, usage);

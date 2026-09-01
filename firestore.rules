@@ -23,14 +23,17 @@ service cloud.firestore {
     // Vertex AI 비용이 무제한으로 새어나간다.
     function billingFieldsUnchanged() {
       return !request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny(['isPremium', 'dailyUsage', 'lastUsageDate']);
+          .hasAny(['isPremium', 'dailyUsage', 'lastUsageDate',
+                   'monthlyUsage', 'lastUsageMonth']);
     }
 
     // 최초 문서 생성 시에는 무료 기본값만 허용한다.
     function billingFieldsAreDefault() {
       return request.resource.data.get('isPremium', false) == false
           && request.resource.data.get('dailyUsage', 0) == 0
-          && request.resource.data.get('lastUsageDate', '') == '';
+          && request.resource.data.get('lastUsageDate', '') == ''
+          && request.resource.data.get('monthlyUsage', 0) == 0
+          && request.resource.data.get('lastUsageMonth', '') == '';
     }
 
     // ── 사용자 문서 + 모든 하위 데이터 ──────────────────────
@@ -53,6 +56,18 @@ service cloud.firestore {
       match /{collection}/{document=**} {
         allow read, write: if isOwner(userId);
       }
+    }
+
+    // ── 앱 공용 설정 (읽기 전용) ────────────────────────────
+    // config/limits = 무료 사용 한도. 서버(callGemini)가 차단에 쓰고
+    // 앱은 잔여 횟수 표시에 쓴다. 양쪽이 같은 문서를 보기 때문에
+    // 콘솔에서 숫자만 바꾸면 앱 업데이트 없이 즉시 반영된다.
+    //
+    // 쓰기는 절대 열지 않는다. 클라이언트가 한도를 고칠 수 있으면
+    // 그 순간 한도가 아니다 (Admin SDK는 규칙을 우회하므로 운영은 콘솔에서).
+    match /config/{document} {
+      allow read: if request.auth != null;
+      allow write: if false;
     }
 
     // ── 그 외 전부 차단 ────────────────────────────────────

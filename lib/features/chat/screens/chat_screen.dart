@@ -62,8 +62,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final hubInjected = ref.watch(hubInjectedProvider);
     final apiKey = ref.watch(geminiApiKeyProvider).valueOrNull ?? '';
     final isUnlimited = apiKey.isNotEmpty;
+    final limits =
+        ref.watch(usageLimitsProvider).valueOrNull ?? UsageLimits.fallback;
     final usedToday = ref.watch(chatDailyUsageProvider).valueOrNull ?? 0;
-    final remaining = (freeDailyLimit - usedToday).clamp(0, freeDailyLimit);
+    final usedMonth = ref.watch(chatMonthlyUsageProvider).valueOrNull ?? 0;
+
+    // 서버는 일·월 한도를 모두 검사하므로, 실제로 막히는 시점은 둘 중
+    // 먼저 소진되는 쪽이다. 남은 횟수도 그 기준으로 보여줘야
+    // "N회 남았다는데 왜 막히지?"가 생기지 않는다.
+    final remaining = [
+      (limits.daily - usedToday),
+      (limits.monthly - usedMonth),
+    ].reduce((a, b) => a < b ? a : b).clamp(0, limits.daily);
 
     // 새 메시지 오면 스크롤
     ref.listen(chatProvider, (prev, next) => _scrollToBottom());
