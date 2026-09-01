@@ -45,7 +45,11 @@
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
-    <uses-permission android:name="android.permission.READ_CALENDAR"/>
+    <!-- READ_CALENDAR 선언 제거됨.
+         일정은 Google Calendar API로만 읽고 기기 캘린더는 건드리지 않는다
+         (device_calendar 의존성도 이미 제거된 상태). 쓰지 않는 민감 권한을
+         선언해두면 설치 시 불필요한 권한 경고가 뜨고, Play 심사에서 용도
+         소명 대상이 되며, Data Safety 신고 내용과도 어긋난다. -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>

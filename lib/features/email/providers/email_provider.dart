@@ -6,7 +6,7 @@ import '../models/email_account.dart';
 import '../../../shared/services/email/gmail_service.dart';
 import '../../../shared/services/email/imap_service.dart';
 import '../../../shared/services/email/email_ai_service.dart';
-import '../../settings/providers/settings_provider.dart';
+import '../../auth/providers/auth_provider.dart';
 
 // ── 계정 목록 ─────────────────────────────────────────────────────
 
@@ -15,7 +15,11 @@ class AccountsNotifier extends AsyncNotifier<List<EmailAccount>> {
   static const _pwPrefix = 'email_pw_';
 
   @override
-  Future<List<EmailAccount>> build() async => _load();
+  Future<List<EmailAccount>> build() async {
+    // 계정 전환 시 이전 사용자의 메일 계정 목록이 남지 않도록 재구독.
+    ref.watch(currentUserProvider);
+    return _load();
+  }
 
   Future<List<EmailAccount>> _load() async {
     final prefs = await SharedPreferences.getInstance();

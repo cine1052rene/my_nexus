@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../../../shared/services/auth/google_auth_service.dart';
+import '../../../shared/services/local_store.dart';
 
 // 현재 로그인 상태 스트림
 final authStateProvider = StreamProvider<User?>((ref) {
@@ -51,7 +52,11 @@ class AuthNotifier extends AsyncNotifier<void> {
   }
 
   /// 로그아웃
+  ///
+  /// 기기에 남은 사용자 귀속 데이터(BYOK 키·IMAP 비밀번호·메일 계정 목록)를
+  /// 먼저 지운다. 안 지우면 같은 기기의 다음 사용자에게 그대로 넘어간다.
   Future<void> signOut() async {
+    await LocalStore.clearUserScopedData();
     await appGoogleSignIn.signOut();
     await _auth.signOut();
   }
@@ -65,6 +70,11 @@ class AuthNotifier extends AsyncNotifier<void> {
       // Cloud Function 호출 (서버에서 users 문서 + Auth 삭제)
       final functions = FirebaseFunctions.instanceFor(region: 'asia-northeast3');
       await functions.httpsCallable('deleteUserAccount').call();
+
+      // 기기에 남은 로컬 데이터까지 삭제.
+      // 서버만 지우면 BYOK 키·IMAP 비밀번호가 기기에 남아
+      // "모든 사용자 데이터 삭제"라는 Play 정책을 충족하지 못한다.
+      await LocalStore.clearUserScopedData();
 
       // 클라이언트 로그아웃
       await appGoogleSignIn.signOut();
