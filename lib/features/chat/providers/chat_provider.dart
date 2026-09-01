@@ -8,32 +8,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../../shared/services/ai/gemini_service.dart';
 import '../../../shared/services/ai/gemini_prompts.dart';
 import '../../../shared/services/data/firestore_service.dart';
-
-/// 무료 사용 한도.
-///
-/// 실제 기준은 Firestore `config/limits` 문서이고 서버(callGemini)도 같은
-/// 문서를 본다. 여기 값은 문서를 아직 못 읽었을 때만 쓰는 임시값이므로
-/// **서버의 DEFAULT_LIMITS와 같게 유지할 것**.
-class UsageLimits {
-  final int daily;
-  final int monthly;
-  const UsageLimits({required this.daily, required this.monthly});
-
-  static const fallback = UsageLimits(daily: 10, monthly: 100);
-}
-
-/// 한도 설정 구독 — 콘솔에서 숫자를 바꾸면 앱 업데이트 없이 즉시 반영된다.
-final usageLimitsProvider = StreamProvider<UsageLimits>((ref) {
-  return FirebaseFirestore.instance.doc('config/limits').snapshots().map((doc) {
-    final d = doc.data();
-    if (d == null) return UsageLimits.fallback;
-    return UsageLimits(
-      daily: (d['dailyFree'] as num?)?.toInt() ?? UsageLimits.fallback.daily,
-      monthly:
-          (d['monthlyFree'] as num?)?.toInt() ?? UsageLimits.fallback.monthly,
-    );
-  });
-});
+export '../../../shared/providers/usage_limits_provider.dart';
 
 String _todayString() {
   final now = DateTime.now();

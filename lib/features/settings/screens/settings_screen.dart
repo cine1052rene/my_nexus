@@ -4,6 +4,7 @@ import '../providers/settings_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/tab_defs.dart';
 import '../../../shared/services/ai/gemini_service.dart';
+import '../../../shared/providers/usage_limits_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -23,6 +24,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // 키가 있으면 GeminiService가 서버를 거치지 않고 그 키로 직접 호출한다.
     // 프리미엄 여부와 무관하게 이게 실제 사용 경로를 결정한다.
     final usingOwnKey = apiKey.isNotEmpty;
+
+    // 한도 숫자는 반드시 설정값에서 가져온다. 문구에 박아두면
+    // 콘솔에서 한도를 바꿔도 이 문장만 옛날 값으로 남는다.
+    final limits =
+        ref.watch(usageLimitsProvider).valueOrNull ?? UsageLimits.fallback;
 
     return Scaffold(
       appBar: AppBar(title: const Text('⚙️ 설정')),
@@ -109,7 +115,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ? '내 Gemini 키로 무제한 사용 중'
                         : isPremium
                             ? '일일 한도 없이 사용'
-                            : '일 30회 AI 무료 사용',
+                            : '일 ${limits.daily}회 · 월 ${limits.monthly}회 무료',
                     style: const TextStyle(fontSize: 12),
                   ),
                   trailing: Container(
@@ -235,7 +241,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     child: Text(
                       apiKey.isNotEmpty
                           ? '✓ 내 키로 호출 중이라 일일 한도가 적용되지 않아요'
-                          : '내 키를 연동하면 일일 30회 한도 없이 사용할 수 있어요 (사용료는 본인 Google 계정에 청구)',
+                          : '내 키를 연동하면 일 ${limits.daily}회 한도 없이 사용할 수 있어요 (사용료는 본인 Google 계정에 청구)',
                       style: TextStyle(
                         fontSize: 11,
                         color: apiKey.isNotEmpty

@@ -4,7 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Gemini AI 중앙 서비스
-/// - API 키 미설정: Firebase Functions (서버 Vertex AI, 일 30회 무료 한도)
+/// - API 키 미설정: Firebase Functions (서버 Vertex AI, 무료 한도 적용)
+///   한도 값은 Firestore `config/limits` 문서가 기준 — 여기 적지 말 것
 /// - API 키 설정됨: Google AI Studio 직접 호출 (사용자 자체 쿼터, 무제한)
 class GeminiService {
   static const _keyPref = 'gemini_api_key';
