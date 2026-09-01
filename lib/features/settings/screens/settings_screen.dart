@@ -20,6 +20,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final apiKey      = ref.watch(geminiApiKeyProvider).valueOrNull ?? '';
     final featureMap  = tabFeatures.valueOrNull ?? {};
 
+    // 키가 있으면 GeminiService가 서버를 거치지 않고 그 키로 직접 호출한다.
+    // 프리미엄 여부와 무관하게 이게 실제 사용 경로를 결정한다.
+    final usingOwnKey = apiKey.isNotEmpty;
+
     return Scaffold(
       appBar: AppBar(title: const Text('⚙️ 설정')),
       body: ListView(
@@ -73,56 +77,70 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               children: [
                 // 현재 플랜 상태
+                //
+                // 실제 분기 기준은 '프리미엄 여부'가 아니라 **어느 쿼터를 쓰는가**다.
+                // GeminiService는 저장된 키가 있으면 무조건 그 키로 직접 호출하고,
+                // 없을 때만 서버(Functions)를 탄다. 그래서 키가 있으면
+                // 프리미엄이든 무료든 한도와 무관하게 무제한이다.
                 ListTile(
                   leading: Container(
                     width: 40, height: 40,
                     decoration: BoxDecoration(
-                      color: isPremium
-                          ? const Color(0xFFFFF8E1)
-                          : const Color(0xFFEDE9FF),
+                      color: usingOwnKey
+                          ? const Color(0xFFE8F5E9)
+                          : isPremium
+                              ? const Color(0xFFFFF8E1)
+                              : const Color(0xFFEDE9FF),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Center(
                       child: Text(
-                        isPremium ? '⭐' : '✨',
+                        usingOwnKey ? '🔑' : (isPremium ? '⭐' : '✨'),
                         style: const TextStyle(fontSize: 20),
                       ),
                     ),
                   ),
                   title: Text(
-                    isPremium ? '프리미엄' : '무료',
+                    usingOwnKey ? '내 API 키' : (isPremium ? '프리미엄' : '무료'),
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                   subtitle: Text(
-                    isPremium
-                        ? 'Gemini API 직접 연동 가능'
-                        : '일 30회 AI 무료 사용',
+                    usingOwnKey
+                        ? '내 Gemini 키로 무제한 사용 중'
+                        : isPremium
+                            ? '일일 한도 없이 사용'
+                            : '일 30회 AI 무료 사용',
                     style: const TextStyle(fontSize: 12),
                   ),
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isPremium
+                      // 내 키 사용 중이거나 무료면 초록, 프리미엄만 앰버
+                      color: (isPremium && !usingOwnKey)
                           ? Colors.amber.withOpacity(0.15)
                           : Colors.green.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      isPremium ? '프리미엄 ✓' : '활성 ✓',
+                      usingOwnKey
+                          ? '무제한 ✓'
+                          : (isPremium ? '프리미엄 ✓' : '활성 ✓'),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: isPremium
-                            ? Colors.amber[800]
-                            : Colors.green[700],
+                        color: usingOwnKey
+                            ? Colors.green[700]
+                            : isPremium
+                                ? Colors.amber[800]
+                                : Colors.green[700],
                       ),
                     ),
                   ),
                 ),
 
-                // 무료 유저 안내
-                if (!isPremium) ...[
+                // 서버 쿼터를 쓰는 동안만 무료 한도 안내를 보여준다
+                if (!usingOwnKey && !isPremium) ...[
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
@@ -133,8 +151,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ],
 
-                // 프리미엄 유저 API 키 연동
-                if (isPremium) ...[
+                // API 키 연동 — 모든 사용자에게 노출한다.
+                //
+                // 이전에는 isPremium일 때만 보여줬는데, BYOK는 애초에
+                // "사용자가 자기 키로 자기 비용을 부담"하는 장치라
+                // 한도에 걸리는 무료 사용자에게 가장 필요하다.
+                // 정작 그들에게 숨겨져 있어서 우회 수단이 없었다.
+                ...[
                   const Divider(height: 1, indent: 16, endIndent: 16),
                   ListTile(
                     leading: Container(
@@ -153,11 +176,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             : Colors.grey[500],
                       ),
                     ),
-                    title: const Text('Gemini API 키 연동',
+                    // ListTile trailing에 뱃지+화살표가 있어 제목 폭이 좁다.
+                    // 길면 두 줄로 깨지므로 짧게 유지할 것.
+                    title: const Text('내 API 키 사용',
                         style: TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: Text(
                       apiKey.isNotEmpty
-                          ? '${apiKey.substring(0, 8)}••••${apiKey.substring(apiKey.length - 4)}'
+                          ? _maskKey(apiKey)
                           : 'Google AI Studio 키를 입력하세요',
                       style: TextStyle(
                         fontSize: 12,
@@ -209,8 +234,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                     child: Text(
                       apiKey.isNotEmpty
-                          ? '✓ 자체 API 키로 무제한 AI 사용 중'
-                          : 'API 키 연동 시 일일 한도 없이 무제한 사용 가능',
+                          ? '✓ 내 키로 호출 중이라 일일 한도가 적용되지 않아요'
+                          : '내 키를 연동하면 일일 30회 한도 없이 사용할 수 있어요 (사용료는 본인 Google 계정에 청구)',
                       style: TextStyle(
                         fontSize: 11,
                         color: apiKey.isNotEmpty
@@ -374,6 +399,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  /// API 키를 앞 8자 + 뒤 4자만 남기고 가린다.
+  /// 짧은 문자열이 들어와도 substring이 터지지 않도록 길이를 먼저 확인한다.
+  static String _maskKey(String key) {
+    if (key.length <= 12) return '••••';
+    return '${key.substring(0, 8)}••••${key.substring(key.length - 4)}';
   }
 
   // ── API 키 연동 다이얼로그 ─────────────────────────────────────
