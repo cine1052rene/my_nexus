@@ -427,6 +427,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 'Google AI Studio (aistudio.google.com)에서 발급받은 API 키를 입력하세요.',
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
+              const SizedBox(height: 6),
+              // 2026년 9월부터 Gemini API가 구형 Standard 키를 전부 거부한다.
+              // 예전에 만든 키를 그대로 넣으면 원인을 모른 채 실패하므로 미리 안내한다.
+              Text(
+                '오래전에 발급한 키는 더 이상 동작하지 않을 수 있어요. '
+                '실패하면 AI Studio에서 키를 새로 발급받아 주세요.',
+                style: TextStyle(fontSize: 11, color: Colors.orange[800]),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: ctrl,

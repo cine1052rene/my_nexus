@@ -60,10 +60,19 @@ class GeminiService {
       };
     }
 
+    // 키는 URL 쿼리(?key=)가 아니라 헤더로 보낸다.
+    // ① Google 공식 문서가 auth key에 대해 안내하는 방식이 x-goog-api-key다.
+    //    2026-09부터 Gemini API가 구형 Standard 키를 전부 거부하므로,
+    //    쿼리 파라미터 방식에 의존하면 조용히 깨질 수 있다.
+    // ② URL은 로그·프록시·크래시 리포트에 그대로 남는다. 자격증명을
+    //    쿼리스트링에 싣는 것 자체가 유출 경로다.
     final res = await http
         .post(
-          Uri.parse('$_directUrl?key=$apiKey'),
-          headers: {'Content-Type': 'application/json'},
+          Uri.parse(_directUrl),
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
           body: jsonEncode(body),
         )
         .timeout(const Duration(seconds: 30));
