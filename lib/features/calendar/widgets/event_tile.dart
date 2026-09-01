@@ -118,12 +118,14 @@ class _FirestoreTile extends StatelessWidget {
       confirmDismiss: (_) async {
         return await showDialog<bool>(
           context: context,
-          builder: (_) => AlertDialog(
+          // 다이얼로그 자신의 context로 pop해야 한다. 바깥 context를 쓰면
+          // 다이얼로그가 아니라 현재 페이지가 pop돼서 화면이 검게 빈다.
+          builder: (dialogCtx) => AlertDialog(
             title: const Text('일정 삭제'),
             content: Text('"${event.title}"을 삭제할까요?'),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
-              TextButton(onPressed: () => Navigator.pop(context, true),
+              TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('취소')),
+              TextButton(onPressed: () => Navigator.pop(dialogCtx, true),
                   child: const Text('삭제', style: TextStyle(color: Colors.red))),
             ],
           ),

@@ -255,15 +255,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onTap: () async {
                     final ok = await showDialog<bool>(
                       context: context,
-                      builder: (_) => AlertDialog(
+                      // ⚠️ 반드시 다이얼로그 자신의 context로 pop해야 한다.
+                      // 바깥 화면의 context를 쓰면 showDialog(useRootNavigator:true)가
+                      // 띄운 루트 네비게이터의 다이얼로그가 아니라 go_router 쉘의
+                      // 현재 페이지가 pop돼서, 화면이 검게 비고 await은 영원히 안 끝난다.
+                      builder: (dialogCtx) => AlertDialog(
                         title: const Text('로그아웃'),
                         content: const Text('로그아웃 할까요?'),
                         actions: [
                           TextButton(
-                              onPressed: () => Navigator.pop(context, false),
+                              onPressed: () => Navigator.pop(dialogCtx, false),
                               child: const Text('취소')),
                           TextButton(
-                              onPressed: () => Navigator.pop(context, true),
+                              onPressed: () => Navigator.pop(dialogCtx, true),
                               child: const Text('로그아웃',
                                   style: TextStyle(color: Colors.red))),
                         ],
@@ -289,18 +293,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onTap: () async {
                     final step1 = await showDialog<bool>(
                       context: context,
-                      builder: (_) => AlertDialog(
+                      builder: (dialogCtx) => AlertDialog(
                         title: const Text('⚠️ 계정 삭제'),
                         content: const Text(
                           '계정을 삭제하면 모든 저장 데이터가 영구적으로 삭제되며 복구할 수 없습니다.\n\n정말 삭제하시겠습니까?',
                         ),
                         actions: [
                           TextButton(
-                            onPressed: () => Navigator.pop(context, false),
+                            onPressed: () => Navigator.pop(dialogCtx, false),
                             child: const Text('취소'),
                           ),
                           TextButton(
-                            onPressed: () => Navigator.pop(context, true),
+                            onPressed: () => Navigator.pop(dialogCtx, true),
                             child: const Text('계속',
                                 style: TextStyle(color: Color(0xFFB00020))),
                           ),
@@ -311,20 +315,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                     final step2 = await showDialog<bool>(
                       context: context,
-                      builder: (_) => AlertDialog(
+                      builder: (dialogCtx) => AlertDialog(
                         title: const Text('🗑️ 최종 확인'),
                         content: const Text(
                           '이 작업은 되돌릴 수 없습니다.\n계정과 모든 데이터를 영구 삭제합니다.',
                         ),
                         actions: [
                           TextButton(
-                            onPressed: () => Navigator.pop(context, false),
+                            onPressed: () => Navigator.pop(dialogCtx, false),
                             child: const Text('취소'),
                           ),
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFB00020)),
-                            onPressed: () => Navigator.pop(context, true),
+                            onPressed: () => Navigator.pop(dialogCtx, true),
                             child: const Text('삭제',
                                 style: TextStyle(color: Colors.white)),
                           ),

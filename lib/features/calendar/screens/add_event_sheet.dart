@@ -244,13 +244,15 @@ class _AddEventSheetState extends ConsumerState<AddEventSheet> {
                      '✈️', '🍽️', '💪', '🌙', '☀️', '❤️', '🎯', '🛒', '💰', '🎉'];
     final result = await showDialog<String>(
       context: context,
-      builder: (_) => AlertDialog(
+      // 다이얼로그 자신의 context로 pop해야 한다. 바깥 context를 쓰면
+      // 다이얼로그가 아니라 현재 화면이 pop된다.
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('이모지 선택'),
         content: Wrap(
           spacing: 8,
           runSpacing: 8,
           children: emojis.map((e) => GestureDetector(
-            onTap: () => Navigator.pop(context, e),
+            onTap: () => Navigator.pop(dialogCtx, e),
             child: Text(e, style: const TextStyle(fontSize: 28)),
           )).toList(),
         ),

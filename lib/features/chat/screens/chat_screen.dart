@@ -161,16 +161,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _confirmReset(BuildContext context) async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      // 다이얼로그 자신의 context로 pop해야 한다. 바깥 context를 쓰면
+      // 다이얼로그가 아니라 현재 페이지가 pop돼서 화면이 검게 빈다.
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('대화 초기화'),
         content: const Text('대화 내용을 모두 지울까요?\nDB허브 연동도 해제됩니다.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogCtx, false),
             child: const Text('취소'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogCtx, true),
             child: const Text('초기화', style: TextStyle(color: Colors.red)),
           ),
         ],
