@@ -16,13 +16,41 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    // ── 과금 관련 필드 보호 ────────────────────────────────
+    // isPremium / dailyUsage / lastUsageDate 는 callGemini 함수가
+    // Admin SDK(규칙 우회)로만 쓴다. 클라이언트가 이 필드를 건드릴 수
+    // 있으면 `isPremium: true` 한 줄로 일일 한도가 통째로 무력화되고
+    // Vertex AI 비용이 무제한으로 새어나간다.
+    function billingFieldsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['isPremium', 'dailyUsage', 'lastUsageDate']);
+    }
+
+    // 최초 문서 생성 시에는 무료 기본값만 허용한다.
+    function billingFieldsAreDefault() {
+      return request.resource.data.get('isPremium', false) == false
+          && request.resource.data.get('dailyUsage', 0) == 0
+          && request.resource.data.get('lastUsageDate', '') == '';
+    }
+
     // ── 사용자 문서 + 모든 하위 데이터 ──────────────────────
     // links / events / video_clips / settings 는 전부 이 아래에 있다.
     // 와일드카드 하위 매칭이라 새 서브컬렉션을 추가해도 자동으로 보호된다.
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read:   if isOwner(userId);
+      allow create: if isOwner(userId) && billingFieldsAreDefault();
+      allow update: if isOwner(userId) && billingFieldsUnchanged();
 
-      match /{document=**} {
+      // 문서 삭제는 클라이언트에 열어주지 않는다. 삭제만 할 수 있어도
+      // 사용량 카운터를 0으로 되돌려 한도를 우회할 수 있기 때문이다.
+      // 실제 계정 삭제는 deleteUserAccount 함수(recursiveDelete)가 처리한다.
+      allow delete: if false;
+
+      // ⚠️ `match /{document=**}` 로 쓰면 하위 문서뿐 아니라
+      // users/{userId} 문서 자신에게도 매칭돼서, 바로 위의 필드 보호가
+      // 통째로 무력화된다(Rules Test API로 확인함).
+      // 컬렉션 세그먼트를 하나 강제해서 "하위 데이터만" 걸리게 한다.
+      match /{collection}/{document=**} {
         allow read, write: if isOwner(userId);
       }
     }

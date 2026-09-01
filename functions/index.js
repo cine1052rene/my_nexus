@@ -42,33 +42,51 @@ exports.callGemini = onCall(
     try {
       await admin.firestore().runTransaction(async (tx) => {
         const userDoc = await tx.get(userRef);
-        if (!userDoc.exists) return;
+        const data = userDoc.exists ? userDoc.data() : null;
 
-        const data = userDoc.data();
         isPremium = data?.isPremium === true;
+        if (isPremium) return;
 
-        if (!isPremium) {
-          const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-          const lastDate = data?.lastUsageDate || "";
-          const dailyCount = lastDate === today ? (data?.dailyUsage || 0) : 0;
+        const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+        const lastDate = data?.lastUsageDate || "";
+        const dailyCount = lastDate === today ? (data?.dailyUsage || 0) : 0;
 
-          if (dailyCount >= FREE_DAILY_LIMIT) {
-            throw new HttpsError(
-              "resource-exhausted",
-              `일일 무료 사용량(${FREE_DAILY_LIMIT}회)을 초과했어요. 내일 다시 사용해주세요.`
-            );
-          }
+        if (dailyCount >= FREE_DAILY_LIMIT) {
+          throw new HttpsError(
+            "resource-exhausted",
+            `일일 무료 사용량(${FREE_DAILY_LIMIT}회)을 초과했어요. 내일 다시 사용해주세요.`
+          );
+        }
 
-          tx.update(userRef, {
-            dailyUsage: dailyCount + 1,
-            lastUsageDate: today,
-          });
+        const usage = { dailyUsage: dailyCount + 1, lastUsageDate: today };
+
+        if (userDoc.exists) {
+          tx.update(userRef, usage);
+        } else {
+          // 문서가 없으면 만들어서 카운트한다.
+          // 예전에는 여기서 그냥 return 해 사용량 체크를 통째로 건너뛰었다.
+          // 즉 유저 문서를 지우기만 하면 한도가 사라지는 상태였다.
+          tx.set(
+            userRef,
+            {
+              uid,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              ...usage,
+            },
+            { merge: true }
+          );
         }
       });
     } catch (e) {
       if (e instanceof HttpsError) throw e;
-      // 트랜잭션 실패 시 무료로 처리 (사용량 체크 건너뜀)
-      console.warn("Usage transaction failed:", e.message);
+      // fail-closed: 사용량을 확인하지 못했으면 호출을 막는다.
+      // 예전에는 여기서 그냥 통과시켰기 때문에, 트랜잭션을 실패하게
+      // 만들 수만 있으면 한도 없이 Vertex AI를 쓸 수 있었다.
+      console.error("Usage transaction failed:", e);
+      throw new HttpsError(
+        "unavailable",
+        "사용량을 확인하지 못했어요. 잠시 후 다시 시도해주세요."
+      );
     }
 
     // ── @google/genai Vertex AI 모드 (IAM 자동 인증) ───

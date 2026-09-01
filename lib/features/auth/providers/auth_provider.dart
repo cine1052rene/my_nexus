@@ -79,20 +79,31 @@ class AuthNotifier extends AsyncNotifier<void> {
   }
 
   /// 첫 로그인 시 Firestore에 유저 문서 생성
+  ///
+  /// 실패해도 로그인 자체는 성공 처리한다. 프로필 문서는 편의용이고,
+  /// 사용량 카운터는 서버(callGemini)가 없으면 만들어서 쓰기 때문에
+  /// 여기서 던지면 멀쩡히 인증된 사용자를 로그인 실패로 되돌리게 된다.
   Future<void> _createUserDocIfNeeded(User user) async {
-    final ref = _db.collection('users').doc(user.uid);
-    final doc = await ref.get();
-    if (!doc.exists) {
-      await ref.set({
-        'uid': user.uid,
-        'email': user.email,
-        'displayName': user.displayName,
-        'photoUrl': user.photoURL,
-        'createdAt': FieldValue.serverTimestamp(),
-        'dailyUsage': 0,
-        'lastUsageDate': '',
-        'plan': 'free', // free | byok
-      });
+    try {
+      final ref = _db.collection('users').doc(user.uid);
+      final doc = await ref.get();
+      if (!doc.exists) {
+        // dailyUsage / lastUsageDate 는 보안 규칙상 생성 시 기본값만 허용된다.
+        // (이후 수정은 서버 Admin SDK만 가능 — 한도 우회 차단)
+        await ref.set({
+          'uid': user.uid,
+          'email': user.email,
+          'displayName': user.displayName,
+          'photoUrl': user.photoURL,
+          'createdAt': FieldValue.serverTimestamp(),
+          'dailyUsage': 0,
+          'lastUsageDate': '',
+          'plan': 'free', // free | byok
+        });
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('유저 문서 생성 실패(로그인은 계속 진행): $e');
     }
   }
 }
