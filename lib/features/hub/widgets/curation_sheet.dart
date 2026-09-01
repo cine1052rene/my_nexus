@@ -6,6 +6,7 @@ import '../models/link_item.dart';
 import '../../myroom/providers/myroom_provider.dart';
 import '../../../shared/services/ai/gemini_service.dart';
 import '../../../shared/services/ai/gemini_prompts.dart';
+import '../../../shared/utils/tag_utils.dart';
 
 class CurationSheet extends ConsumerStatefulWidget {
   final LinkItem item;
@@ -102,10 +103,8 @@ class _CurationSheetState extends ConsumerState<CurationSheet> {
         ? widget.item.title
         : _titleCtrl.text.trim();
 
-    final tags = RegExp(r'#(\S+)')
-        .allMatches(_summaryCtrl.text)
-        .map((m) => m.group(1)!)
-        .toList();
+    // 마크다운 제목이 태그 "#" 로 잘못 추출되던 문제 — tag_utils 참고
+    final tags = extractHashtags(_summaryCtrl.text);
 
     final err = await ref.read(myroomNotifierProvider.notifier).addClip(
       url:          widget.item.url,

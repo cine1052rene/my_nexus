@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import '../models/link_item.dart';
 import '../providers/hub_provider.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../shared/utils/tag_utils.dart';
+import '../../../shared/widgets/quick_action_fields.dart';
 
 class AddLinkSheet extends ConsumerStatefulWidget {
   final LinkItem? editItem;
@@ -26,6 +28,8 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
   String? _ytKeywordId;      // 선택된 YouTube 키워드 ID
   bool    _loading      = false;
   String? _fetchedThumb;
+
+  bool get _isEdit => widget.editItem != null;
 
   @override
   void initState() {
@@ -127,11 +131,7 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
 
   /// 선택한 YouTube 키워드를 태그에 반영 (기존 yt 키워드 태그 교체)
   void _syncYtKeywordToTags(String? kwId) {
-    final tags = _tagsCtrl.text
-        .split(',')
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
+    final tags = parseTags(_tagsCtrl.text);
     // 기존 YouTube 키워드 태그 제거
     for (final k in YoutubeKeyword.all_list) tags.remove(k.label);
     // 새 키워드 추가
@@ -150,11 +150,7 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
           const SnackBar(content: Text('URL과 제목을 입력해주세요')));
       return;
     }
-    final tags = _tagsCtrl.text
-        .split(',')
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
+    final tags = parseTags(_tagsCtrl.text);
     final notifier = ref.read(hubNotifierProvider.notifier);
     String? err;
 
@@ -217,8 +213,17 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
                 Row(children: [
                   Expanded(child: TextField(
                       controller: _urlCtrl,
-                      decoration: const InputDecoration(
-                          labelText: '🔗 URL', hintText: 'https://...'),
+                      // 편집 중에는 URL을 잠근다. 주소가 바뀌면 사실상 다른
+                      // 링크라 새로 추가하는 편이 맞다.
+                      // 단 '가져오기'는 남겨둔다 — 자동 수집이 실패해 제목·
+                      // 썸네일이 비었을 때 여기서 다시 시도할 수 있어야 한다.
+                      readOnly: _isEdit,
+                      decoration: InputDecoration(
+                          labelText: _isEdit ? '🔗 URL (수정 불가)' : '🔗 URL',
+                          hintText: 'https://...',
+                          filled: _isEdit,
+                          fillColor:
+                              _isEdit ? Colors.grey.withOpacity(0.08) : null),
                       keyboardType: TextInputType.url)),
                   const SizedBox(width: 8),
                   ElevatedButton(
@@ -232,8 +237,8 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
                   ),
                 ]),
                 const SizedBox(height: 12),
-                TextField(controller: _titleCtrl,
-                    decoration: const InputDecoration(labelText: '📌 제목 *')),
+                ClearableTextField(
+                    controller: _titleCtrl, labelText: '📌 제목 *'),
                 const SizedBox(height: 12),
 
                 // 카테고리
@@ -303,10 +308,10 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
                     decoration: const InputDecoration(
                         labelText: '💬 주석', hintText: '개인 메모, 아이디어...')),
                 const SizedBox(height: 12),
-                TextField(controller: _tagsCtrl,
-                    decoration: const InputDecoration(
-                        labelText: '🏷️ 태그 (쉼표로 구분)',
-                        hintText: '뜨개질, 초보, 겨울...')),
+                HashtagTextField(
+                    controller: _tagsCtrl,
+                    labelText: '🏷️ 태그',
+                    hintText: '#뜨개질 #초보  또는  뜨개질, 초보'),
               ],
             ),
           ),

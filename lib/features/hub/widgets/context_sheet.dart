@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../models/link_item.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../myroom/providers/myroom_provider.dart';
+import '../../../shared/utils/tag_utils.dart';
 
 /// DB 허브 → 상세 학습용 컨텍스트 정리 시트
 /// 큐레이션보다 훨씬 상세한 내용 정리 + 마이룸 저장
@@ -143,10 +144,9 @@ ${widget.item.url}
         ? widget.item.title
         : _titleCtrl.text.trim();
 
-    final tags = RegExp(r'#(\S+)')
-        .allMatches(_contentCtrl.text)
-        .map((m) => m.group(1)!)
-        .toList();
+    // 예전 정규식 #(\S+) 은 마크다운 제목 '## 개요' 에서 태그 "#" 를
+    // 만들어냈다. extractHashtags()가 그 경우를 걸러낸다.
+    final tags = extractHashtags(_contentCtrl.text);
 
     final err = await ref.read(myroomNotifierProvider.notifier).addClip(
       url:          widget.item.url,

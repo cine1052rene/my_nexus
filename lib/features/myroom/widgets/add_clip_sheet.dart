@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/video_clip.dart';
 import '../providers/myroom_provider.dart';
+import '../../../shared/utils/tag_utils.dart';
+import '../../../shared/widgets/quick_action_fields.dart';
 
 class AddClipSheet extends ConsumerStatefulWidget {
   final VideoClip? editClip;
@@ -59,11 +61,7 @@ class _AddClipSheetState extends ConsumerState<AddClipSheet> {
     }
   }
 
-  List<String> get _tags => _tagsCtrl.text
-      .split(',')
-      .map((t) => t.trim())
-      .where((t) => t.isNotEmpty)
-      .toList();
+  List<String> get _tags => parseTags(_tagsCtrl.text);
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -175,9 +173,9 @@ class _AddClipSheetState extends ConsumerState<AddClipSheet> {
               const SizedBox(height: 12),
 
               // 제목
-              TextFormField(
+              ClearableTextField(
                 controller: _titleCtrl,
-                decoration: const InputDecoration(labelText: '제목 *'),
+                labelText: '제목 *',
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? '제목을 입력해주세요' : null,
                 textInputAction: TextInputAction.next,
@@ -197,13 +195,10 @@ class _AddClipSheetState extends ConsumerState<AddClipSheet> {
               const SizedBox(height: 12),
 
               // 태그 (선택)
-              TextFormField(
+              HashtagTextField(
                 controller: _tagsCtrl,
-                decoration: const InputDecoration(
-                  labelText: '태그 (선택, 쉼표 구분)',
-                  hintText: '먹방, 레시피, 일상',
-                ),
-                textInputAction: TextInputAction.done,
+                labelText: '태그 (선택)',
+                hintText: '#먹방 #레시피  또는  먹방, 레시피',
               ),
               const SizedBox(height: 24),
 
