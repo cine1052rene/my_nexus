@@ -7,6 +7,7 @@ import '../models/link_item.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../myroom/providers/myroom_provider.dart';
 import '../../../shared/utils/tag_utils.dart';
+import '../../../shared/services/ai/gemini_service.dart';
 
 /// DB 허브 → 상세 학습용 컨텍스트 정리 시트
 /// 큐레이션보다 훨씬 상세한 내용 정리 + 마이룸 저장
@@ -52,7 +53,8 @@ class _ContextSheetState extends ConsumerState<ContextSheet> {
 
     try {
       final rawContent = await _fetchContent();
-      final model      = GenerativeModel(model: 'gemini-2.5-flash', apiKey: apiKey);
+      // 모델명은 GeminiService._model 과 맞출 것 (BYOK 경로라 여기도 사용자 키를 쓴다)
+      final model      = GenerativeModel(model: GeminiService.model, apiKey: apiKey);
       final response   = await model.generateContent([Content.text(_buildPrompt(rawContent))]);
       final content    = response.text?.trim() ?? '내용을 정리하지 못했어요.';
 

@@ -5,7 +5,43 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 
 const PROJECT_ID = "my-nexus-hub";
-const LOCATION = "asia-northeast3"; // 서울 리전
+const LOCATION = "asia-northeast3"; // Cloud Functions 배포 리전 (서울)
+
+// ── Vertex AI 호출 리전 ───────────────────────────────────────
+//
+// Functions 배포 리전(LOCATION)과 **반드시 분리해서 쓸 것.**
+// Gemini 3.x 계열은 asia-northeast3에 아예 배포돼 있지 않아
+// 지역 엔드포인트로 호출하면 404 "Publisher model not found"가 난다.
+// (2026-09-03 실측: 3.5-flash-lite / 3.5-flash / 3.6-flash / 3.7-flash 전부
+//  asia-northeast3 404, global OK. 2.5-flash만 둘 다 OK였음)
+//
+// 즉 모델명만 바꾸고 리전을 그대로 두면 챗봇이 통째로 죽는다.
+// global 엔드포인트는 지역 데이터 레지던시를 보장하지 않는다 —
+// 개인정보처리방침 5항에 Vertex AI 위탁이 이미 고지돼 있고
+// 지역 관련 문구는 없으므로 현재 방침과 충돌하지 않는다.
+const VERTEX_LOCATION = "global";
+
+// ── 사용 모델 ─────────────────────────────────────────────────
+//
+// gemini-2.5-flash는 2026-10-16 지원 종료 → 교체 필요.
+//
+// 후보별 100만 토큰당 단가 (입력/출력):
+//   gemini-2.5-flash      $0.30 / $2.50   ← 기존, 곧 종료
+//   gemini-3.5-flash-lite $0.30 / $2.50   ← 채택 (기존과 동일 단가)
+//   gemini-3.6-flash      $0.75 / $3.75 → 2027-01-01부터 $1.50 / $7.50
+//   gemini-3.5-flash      $1.50 / $9.00
+//
+// 구글의 공식 승계 모델은 3.6-flash지만 채택하지 않았다.
+// 이 앱은 운영비의 90%가 챗봇 LLM이라 단가가 그대로 원가가 되는데,
+// 3.6-flash는 2027년부터 입력 5배·출력 3배가 되어 무료 한도 단가 계산이
+// 통째로 무너진다. 반면 챗봇이 실제로 하는 일은 저장된 링크 조회 응답과
+// 링크 요약이고 (복잡한 질의는 이미 로컬 쿼리가 처리),
+// thinkingBudget도 0이라 추론 성능이 필요한 구간이 아니다.
+// flash-lite는 이 "고빈도·단순" 워크로드를 겨냥한 모델이고
+// 실측 응답 품질도 동일했다 (2026-09-03, 오히려 지연 1532ms→1043ms).
+//
+// ⚠️ 모델을 바꿀 땐 VERTEX_LOCATION 지원 여부를 먼저 실측할 것.
+const GEMINI_MODEL = "gemini-3.5-flash-lite";
 
 // ── 무료 한도 설정 ────────────────────────────────────────────
 //
@@ -153,15 +189,16 @@ exports.callGemini = onCall(
     const ai = new GoogleGenAI({
       vertexai: true,
       project: PROJECT_ID,
-      location: LOCATION,
+      location: VERTEX_LOCATION,
     });
 
     const modelConfig = {
-      model: "gemini-2.5-flash",
+      model: GEMINI_MODEL,
       config: {
         temperature: mode === "chat" ? 0.7 : 0.9,
         maxOutputTokens: mode === "chat" ? 2048 : 4096,
-        // thinking 토큰 비용 차단 (Gemini 2.5 Flash 기본값 활성화 → 명시적 OFF)
+        // thinking 토큰 비용 차단 (기본값이 동적 할당이라 명시적 OFF 필요).
+        // thinking 토큰은 출력 단가로 과금되므로 끄지 않으면 비용이 튄다.
         thinkingConfig: { thinkingBudget: 0 },
       },
     };
