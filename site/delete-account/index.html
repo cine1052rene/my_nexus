@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>계정 삭제 — MyNexus</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    background: #faf9fb; color: #24202b; min-height: 100vh;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 48px 24px 80px; }
+  a.back { display: inline-block; margin-bottom: 24px; font-size: 13px; text-decoration: none; color: #6C2780; }
+  h1 { font-size: 22px; font-weight: 800; margin: 0 0 8px; }
+  .desc { font-size: 14px; color: #6b6575; margin: 0 0 28px; line-height: 1.6; }
+  .card {
+    background: #fff; border-radius: 18px; padding: 28px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  }
+  .warn-box {
+    background: #fdf2f2; border: 1px solid #f6d6d6; border-radius: 12px;
+    padding: 14px 16px; font-size: 13px; color: #a13a3a; margin-bottom: 22px; line-height: 1.6;
+  }
+  .warn-box ul { margin: 8px 0 0; padding-left: 18px; }
+  button {
+    width: 100%; padding: 13px; border-radius: 12px; border: none;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #btnLogin { background: #fff; color: #24202b; border: 1px solid #dedae3; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  #btnLogin img { width: 18px; height: 18px; }
+  #btnDelete { background: #d94848; color: #fff; margin-top: 14px; }
+  #btnLogout { background: none; color: #8a8494; font-weight: 500; font-size: 13px; margin-top: 12px; text-decoration: underline; }
+  .userInfo { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; padding: 10px; background: #f7f5f9; border-radius: 12px; }
+  .userInfo img { width: 36px; height: 36px; border-radius: 50%; }
+  .userInfo .name { font-size: 13px; font-weight: 700; }
+  .userInfo .email { font-size: 12px; color: #8a8494; }
+  #status { font-size: 13px; margin-top: 16px; text-align: center; min-height: 18px; }
+  #status.error { color: #d94848; }
+  #status.ok { color: #2f9e5b; }
+  .hidden { display: none !important; }
+  .confirm-input {
+    width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #dedae3;
+    font-size: 14px; margin-top: 14px;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="/">← MyNexus 홈으로</a>
+    <h1>계정 및 데이터 삭제</h1>
+    <p class="desc">
+      MyNexus 앱을 삭제했더라도 이 페이지에서 Google 계정으로 로그인하면
+      저장된 모든 데이터를 영구적으로 삭제할 수 있습니다.
+    </p>
+
+    <div class="card">
+      <div class="warn-box">
+        삭제하면 되돌릴 수 없습니다. 아래 데이터가 모두 영구 삭제됩니다.
+        <ul>
+          <li>저장한 링크·클립·태그</li>
+          <li>등록한 일정</li>
+          <li>앱 설정 및 사용 기록</li>
+          <li>Google 로그인 계정 자체</li>
+        </ul>
+      </div>
+
+      <div id="loginBox">
+        <button id="btnLogin">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" />
+          Google 계정으로 로그인
+        </button>
+      </div>
+
+      <div id="deleteBox" class="hidden">
+        <div class="userInfo">
+          <img id="userPhoto" src="" alt="" />
+          <div>
+            <div class="name" id="userName"></div>
+            <div class="email" id="userEmail"></div>
+          </div>
+        </div>
+
+        <input class="confirm-input" id="confirmInput" placeholder='삭제하려면 "삭제"를 입력하세요' />
+        <button id="btnDelete" disabled>계정 및 모든 데이터 영구 삭제</button>
+        <button id="btnLogout">다른 계정으로 로그인</button>
+      </div>
+
+      <div id="status"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import {
+      getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAv5Kvph7fnPHK3rH_oaSSTC8h2F5Yp7Is",
+      authDomain: "my-nexus-hub.firebaseapp.com",
+      projectId: "my-nexus-hub",
+      storageBucket: "my-nexus-hub.firebasestorage.app",
+      messagingSenderId: "397552928960",
+      appId: "1:397552928960:web:e8e522c8ab844219204525",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const functions = getFunctions(app, "asia-northeast3");
+
+    const loginBox = document.getElementById("loginBox");
+    const deleteBox = document.getElementById("deleteBox");
+    const btnLogin = document.getElementById("btnLogin");
+    const btnDelete = document.getElementById("btnDelete");
+    const btnLogout = document.getElementById("btnLogout");
+    const confirmInput = document.getElementById("confirmInput");
+    const statusEl = document.getElementById("status");
+
+    function setStatus(msg, type) {
+      statusEl.textContent = msg || "";
+      statusEl.className = type || "";
+    }
+
+    btnLogin.addEventListener("click", async () => {
+      setStatus("");
+      try {
+        const provider = new GoogleAuthProvider();
+        await signInWithPopup(auth, provider);
+      } catch (e) {
+        setStatus("로그인에 실패했어요: " + e.message, "error");
+      }
+    });
+
+    btnLogout.addEventListener("click", async () => {
+      await signOut(auth);
+      setStatus("");
+    });
+
+    confirmInput.addEventListener("input", () => {
+      btnDelete.disabled = confirmInput.value.trim() !== "삭제";
+    });
+
+    btnDelete.addEventListener("click", async () => {
+      if (confirmInput.value.trim() !== "삭제") return;
+      btnDelete.disabled = true;
+      setStatus("삭제 중이에요... 잠시만 기다려주세요.");
+      try {
+        const deleteUserAccount = httpsCallable(functions, "deleteUserAccount");
+        await deleteUserAccount();
+        setStatus("계정과 모든 데이터가 삭제되었습니다.", "ok");
+        loginBox.classList.remove("hidden");
+        deleteBox.classList.add("hidden");
+        confirmInput.value = "";
+        await signOut(auth);
+      } catch (e) {
+        setStatus("삭제 중 오류가 발생했어요: " + e.message, "error");
+        btnDelete.disabled = false;
+      }
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        loginBox.classList.add("hidden");
+        deleteBox.classList.remove("hidden");
+        document.getElementById("userPhoto").src = user.photoURL || "";
+        document.getElementById("userName").textContent = user.displayName || "사용자";
+        document.getElementById("userEmail").textContent = user.email || "";
+      } else {
+        loginBox.classList.remove("hidden");
+        deleteBox.classList.add("hidden");
+      }
+    });
+  </script>
+</body>
+</html>

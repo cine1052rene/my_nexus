@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/settings_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/tab_defs.dart';
@@ -390,13 +391,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           // ── 앱 정보 ────────────────────────────────────────────
           _SectionTitle('ℹ️ 앱 정보'),
-          const Card(
+          Card(
             child: Column(
               children: [
-                ListTile(
+                const ListTile(
                   leading: Text('🤖', style: TextStyle(fontSize: 20)),
                   title: Text('MyNexus'),
                   subtitle: Text('나만의 비서 앱 v1.0.0'),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.privacy_tip_outlined),
+                  title: const Text('개인정보처리방침'),
+                  trailing: const Icon(Icons.open_in_new, size: 16),
+                  onTap: () => launchUrl(
+                    Uri.parse('https://my-nexus-hub.web.app/privacy'),
+                    mode: LaunchMode.externalApplication,
+                  ),
                 ),
               ],
             ),

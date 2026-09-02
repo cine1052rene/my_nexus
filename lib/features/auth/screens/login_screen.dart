@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
+
+const _kPrivacyUrl = 'https://my-nexus-hub.web.app/privacy';
 
 class LoginScreen extends ConsumerWidget {
   const LoginScreen({super.key});
@@ -105,10 +109,27 @@ class LoginScreen extends ConsumerWidget {
               const SizedBox(height: 16),
 
               // ── 약관 안내 ──────────────────────────────────
-              Text(
-                '로그인 시 서비스 이용약관 및 개인정보 처리방침에 동의합니다.',
+              Text.rich(
+                TextSpan(
+                  style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                  children: [
+                    const TextSpan(text: '로그인 시 서비스 이용약관 및 '),
+                    TextSpan(
+                      text: '개인정보 처리방침',
+                      style: const TextStyle(
+                        decoration: TextDecoration.underline,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      recognizer: TapGestureRecognizer()
+                        ..onTap = () => launchUrl(
+                              Uri.parse(_kPrivacyUrl),
+                              mode: LaunchMode.externalApplication,
+                            ),
+                    ),
+                    const TextSpan(text: '에 동의합니다.'),
+                  ],
+                ),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: Colors.grey[400]),
               ),
               const SizedBox(height: 32),
             ],
