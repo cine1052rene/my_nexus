@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>저장한 자료, 다시 찾으시나요? · MyNexus</title>
+<meta name="description" content="저장한 링크·영상을 다시 찾는 경험에 대한 2분 설문입니다.">
+<meta name="robots" content="noindex">
+<meta property="og:title" content="저장한 자료, 다시 찾으시나요?">
+<meta property="og:description" content="2분이면 끝나는 익명 설문입니다. 이름·연락처는 받지 않습니다.">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#faf9fc; --card:#ffffff; --ink:#1a1830; --ink-2:#565270; --ink-3:#8b87a3;
+  --line:#e8e5f0; --line-2:#d6d1e6; --accent:#6C63FF; --accent-soft:#f0efff;
+  --ok:#1f9d6b; --shadow:0 1px 2px rgba(26,24,48,.05),0 8px 24px rgba(26,24,48,.06);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#131120; --card:#1c1930; --ink:#f2f0fa; --ink-2:#b3aecb; --ink-3:#7c7796;
+    --line:#2b2743; --line-2:#3a3557; --accent:#8b84ff; --accent-soft:#241f45;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131120; --card:#1c1930; --ink:#f2f0fa; --ink-2:#b3aecb; --ink-3:#7c7796;
+  --line:#2b2743; --line-2:#3a3557; --accent:#8b84ff; --accent-soft:#241f45;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Malgun Gothic",system-ui,sans-serif;
+  font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+#bar{position:fixed;top:0;left:0;height:3px;width:0;background:var(--accent);z-index:50;transition:width .35s cubic-bezier(.4,0,.2,1)}
+.wrap{max-width:640px;margin:0 auto;padding:0 18px 88px}
+header{padding:30px 0 16px}
+.eyebrow{font-size:12.5px;font-weight:700;letter-spacing:.08em;color:var(--accent);margin-bottom:8px}
+h1{font-size:25px;line-height:1.28;letter-spacing:-.7px;margin:0 0 9px;font-weight:700}
+.lede{color:var(--ink-2);font-size:14.5px;margin:0;line-height:1.5}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:13px}
+.chip{font-size:12px;font-weight:500;color:var(--ink-2);background:var(--card);border:1px solid var(--line);padding:4px 10px;border-radius:999px}
+.note{background:var(--accent-soft);border-radius:12px;padding:12px 14px;font-size:13.5px;color:var(--ink-2);margin:14px 0 2px;line-height:1.55}
+.note b{color:var(--ink)}
+.q{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:15px 15px;margin-top:9px;box-shadow:var(--shadow);scroll-margin-top:16px}
+.q.err{border-color:#e05a6b}
+.qh{display:flex;gap:9px;margin-bottom:10px}
+.qn{flex:none;width:22px;height:22px;border-radius:7px;background:var(--accent-soft);color:var(--accent);font-size:12.5px;font-weight:700;display:grid;place-items:center;margin-top:1px}
+.qt{font-size:15.5px;font-weight:700;letter-spacing:-.3px;line-height:1.42}
+.qt em{font-style:normal;background:var(--accent-soft);padding:1px 5px;border-radius:5px;color:var(--accent)}
+.opt-note{font-size:12.5px;color:var(--ink-3);margin:-5px 0 9px 31px;line-height:1.4}
+.optional{font-size:12.5px;font-weight:500;color:var(--ink-3);margin-left:7px}
+.opts{display:flex;flex-direction:column;gap:6px}
+.opts.row{flex-direction:row;flex-wrap:wrap;gap:6px}
+.opts.row label{flex:1 1 auto;min-width:72px;justify-content:center;text-align:center}
+label.o{display:flex;align-items:center;gap:9px;border:1.5px solid var(--line-2);border-radius:11px;padding:10px 13px;cursor:pointer;font-size:14.5px;transition:.14s;background:transparent;user-select:none;position:relative}
+label.o:active{transform:scale(.985)}
+@media(hover:hover){label.o:hover{border-color:var(--accent);background:var(--accent-soft)}}
+label.o input{position:absolute;opacity:0;pointer-events:none}
+.dot{flex:none;width:17px;height:17px;border-radius:50%;border:2px solid var(--line-2);transition:.14s}
+.opts.row .dot{display:none}
+label.o:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700}
+label.o:has(input:checked) .dot{border-color:var(--accent);border-width:5px}
+label.o:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.scale{display:flex;gap:6px;margin-top:2px;flex-direction:row}
+.scale label{flex:1;flex-direction:column;gap:3px;padding:10px 3px;text-align:center;justify-content:center;min-width:0}
+.scale .num{font-size:17px;font-weight:700;line-height:1}
+.scale .lbl{font-size:11px;color:var(--ink-3);font-weight:500;line-height:1}
+label.o:has(input:checked) .lbl{color:var(--accent)}
+textarea,input[type=email]{width:100%;border:1.5px solid var(--line-2);border-radius:11px;padding:10px 13px;font:inherit;font-size:14.5px;background:transparent;color:var(--ink);resize:vertical;font-family:inherit}
+textarea:focus,input:focus{outline:none;border-color:var(--accent)}
+textarea::placeholder,input::placeholder{color:var(--ink-3)}
+.hint{font-size:12px;color:var(--ink-3);margin-top:7px;line-height:1.45}
+.errmsg{color:#e05a6b;font-size:13px;font-weight:500;margin-top:8px;display:none}
+.q.err .errmsg{display:block}
+.submit{position:fixed;left:0;right:0;bottom:0;padding:11px 18px calc(11px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--bg) 66%,transparent);z-index:40}
+.submit>div{max-width:640px;margin:0 auto}
+button{width:100%;border:0;border-radius:13px;background:var(--accent);color:#fff;font-size:16px;font-weight:700;padding:14px;cursor:pointer;transition:.15s;font-family:inherit}
+button:active{transform:scale(.99)}
+button:disabled{opacity:.55;cursor:default}
+.done{text-align:center;padding:70px 0 40px}
+.check{width:62px;height:62px;border-radius:50%;background:var(--ok);margin:0 auto 26px;display:grid;place-items:center;color:#fff;font-size:31px;animation:pop .45s cubic-bezier(.2,1.3,.4,1)}
+@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.done h2{font-size:24px;margin:0 0 12px;letter-spacing:-.5px}
+.done p{color:var(--ink-2);margin:0 auto;max-width:420px;font-size:15.5px}
+.share{margin:24px auto 0;max-width:330px;border-top:1px solid var(--line);padding-top:22px}
+.share-t{font-size:16px;font-weight:700;letter-spacing:-.3px;margin-bottom:3px}
+.share-s{font-size:13px;color:var(--ink-3);margin-bottom:15px;line-height:1.45}
+.qr{background:#fff;border-radius:16px;padding:13px;width:186px;height:186px;margin:0 auto;display:grid;place-items:center;box-shadow:0 2px 14px rgba(26,24,48,.12)}
+.qr svg{width:100%;height:100%;display:block;shape-rendering:crispEdges}
+.qr-msg{font-size:12px;color:#8b87a3;text-align:center;padding:0 8px;line-height:1.4}
+.url{font-size:11.5px;color:var(--ink-3);margin:11px 0 15px;word-break:break-all;letter-spacing:.1px}
+.btns{display:flex;flex-direction:column;gap:8px}
+button.sec{background:transparent;color:var(--accent);border:1.5px solid var(--line-2);font-size:15px;padding:12px}
+button.ghost{background:transparent;color:var(--ink-3);border:0;font-size:13px;font-weight:500;padding:8px;text-decoration:underline;text-underline-offset:3px}
+@media(hover:hover){button.sec:hover{border-color:var(--accent);background:var(--accent-soft)}}
+footer{text-align:center;color:var(--ink-3);font-size:12px;margin-top:20px;line-height:1.6}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div class="wrap">
+<main id="form">
+  <header>
+    <div class="eyebrow">2분 · 익명 설문</div>
+    <h1>저장한 자료,<br>다시 찾으시나요?</h1>
+    <p class="lede">링크·영상·글을 저장해 두고 나중에 다시 찾는 경험에 대해 여쭙습니다.</p>
+    <div class="meta">
+      <span class="chip">🕑 약 2분</span>
+      <span class="chip">🙈 익명</span>
+      <span class="chip">📵 이름·연락처 안 받음</span>
+    </div>
+    <div class="note"><b>정답이 없는 질문입니다.</b> 좋게 답해주실 필요 전혀 없습니다. 솔직한 답, 특히 <b>부정적인 답이 훨씬 도움이 됩니다.</b></div>
+  </header>
+
+  <section class="q" data-name="job">
+    <div class="qh"><span class="qn">0</span><span class="qt">어떤 일을 하고 계신가요?</span></div>
+    <div class="opts row">
+      <label class="o"><input type="radio" name="job" value="직장인 (사무·관리·전문)">직장인 (사무·관리·전문)</label>
+      <label class="o"><input type="radio" name="job" value="직장인 (현장·생산·서비스)">직장인 (현장·생산·서비스)</label>
+      <label class="o"><input type="radio" name="job" value="자영업·사업자">자영업·사업자</label>
+      <label class="o"><input type="radio" name="job" value="프리랜서">프리랜서</label>
+      <label class="o"><input type="radio" name="job" value="학생">학생</label>
+      <label class="o"><input type="radio" name="job" value="무직·그 외">무직·그 외</label>
+    </div>
+    <div class="errmsg">답변을 선택해 주세요</div>
+  </section>
+
+  <section class="q" data-name="q1">
+    <div class="qh"><span class="qn">1</span><span class="qt">최근 한 달간 ‘나중에 봐야지’ 하고 저장한 링크·영상이 몇 개쯤 되나요?</span></div>
+    <div class="opts row">
+      <label class="o"><input type="radio" name="q1" value="0~5개">0~5개</label>
+      <label class="o"><input type="radio" name="q1" value="6~20개">6~20개</label>
+      <label class="o"><input type="radio" name="q1" value="21~50개">21~50개</label>
+      <label class="o"><input type="radio" name="q1" value="51개 이상">51개 이상</label>
+    </div>
+    <div class="errmsg">답변을 선택해 주세요</div>
+  </section>
+
+  <section class="q" data-name="q2">
+    <div class="qh"><span class="qn">2</span><span class="qt">그중 실제로 다시 꺼내 본 건 얼마나 되나요?</span></div>
+    <div class="opts row">
+      <label class="o"><input type="radio" name="q2" value="거의 없다">거의 없다</label>
+      <label class="o"><input type="radio" name="q2" value="1~2개">1~2개</label>
+      <label class="o"><input type="radio" name="q2" value="절반쯤">절반쯤</label>
+      <label class="o"><input type="radio" name="q2" value="대부분">대부분</label>
+    </div>
+    <div class="errmsg">답변을 선택해 주세요</div>
+  </section>
+
+  <section class="q" data-name="q3">
+    <div class="qh"><span class="qn">3</span><span class="qt">저장해 둔 걸 <em>못 찾아서</em> 처음부터 다시 검색한 적이 있나요?</span></div>
+    <div class="opts row">
+      <label class="o"><input type="radio" name="q3" value="없다">없다</label>
+      <label class="o"><input type="radio" name="q3" value="가끔 (월 1~2회)">가끔 (월 1~2회)</label>
+      <label class="o"><input type="radio" name="q3" value="자주 (월 3회 이상)">자주 (월 3회 이상)</label>
+    </div>
+    <div class="errmsg">답변을 선택해 주세요</div>
+  </section>
+
+  <section class="q" data-name="q4">
+    <div class="qh"><span class="qn">4</span><span class="qt">자료를 몇 군데에 나눠서 저장하시나요?</span></div>
+    <div class="opt-note">유튜브 저장함 · 브라우저 북마크 · 인스타 저장 · 카톡 나에게 · 노션 · 메모앱 등</div>
+    <div class="opts row">
+      <label class="o"><input type="radio" name="q4" value="1곳">1곳</label>
+      <label class="o"><input type="radio" name="q4" value="2~3곳">2~3곳</label>
+      <label class="o"><input type="radio" name="q4" value="4~5곳">4~5곳</label>
+      <label class="o"><input type="radio" name="q4" value="6곳 이상">6곳 이상</label>
+    </div>
+    <div class="errmsg">답변을 선택해 주세요</div>
+  </section>
+
+  <section class="q" data-name="q5">
+    <div class="qh"><span class="qn">5</span><span class="qt">저장한 걸 폴더 안 뒤지고 <em>“지난달 저장한 접근성 영상 보여줘”</em>라고 말로 물어보면 찾아주는 앱이 있다면, 쓰시겠어요?</span></div>
+    <div class="opts scale">
+      <label class="o"><input type="radio" name="q5" value="1"><span class="num">1</span><span class="lbl">전혀</span></label>
+      <label class="o"><input type="radio" name="q5" value="2"><span class="num">2</span><span class="lbl">&nbsp;</span></label>
+      <label class="o"><input type="radio" name="q5" value="3"><span class="num">3</span><span class="lbl">보통</span></label>
+      <label class="o"><input type="radio" name="q5" value="4"><span class="num">4</span><span class="lbl">&nbsp;</span></label>
+      <label class="o"><input type="radio" name="q5" value="5"><span class="num">5</span><span class="lbl">당장</span></label>
+    </div>
+    <div class="errmsg">답변을 선택해 주세요</div>
+  </section>
+
+  <section class="q" data-name="q6">
+    <div class="qh"><span class="qn">6</span><span class="qt">하루 10회는 무료, 더 쓰려면 월 구독이라면 얼마까지 내실 의향이 있으세요?</span></div>
+    <div class="opts row">
+      <label class="o"><input type="radio" name="q6" value="0원">0원</label>
+      <label class="o"><input type="radio" name="q6" value="~2천원">~2천원</label>
+      <label class="o"><input type="radio" name="q6" value="~5천원">~5천원</label>
+      <label class="o"><input type="radio" name="q6" value="~1만원">~1만원</label>
+      <label class="o"><input type="radio" name="q6" value="그 이상">그 이상</label>
+    </div>
+    <div class="errmsg">답변을 선택해 주세요</div>
+  </section>
+
+  <section class="q">
+    <div class="qh"><span class="qn">7</span><span class="qt">5번에서 낮게 답하셨다면, 안 쓰실 것 같은 이유를 한 줄만 적어주세요.<span class="optional">선택</span></span></div>
+    <textarea id="reason" rows="2" maxlength="300" placeholder="예: 저장한 걸 다시 볼 일이 별로 없어서요"></textarea>
+    <div class="hint">이 답변이 저희에게 가장 도움이 됩니다. 냉정하게 적어주셔도 괜찮습니다.</div>
+  </section>
+
+  <section class="q">
+    <div class="qh"><span class="qn">8</span><span class="qt">출시되면 알림을 받아보시겠어요?<span class="optional">선택</span></span></div>
+    <input type="email" id="email" maxlength="120" placeholder="name@example.com" autocomplete="email" inputmode="email">
+    <div class="hint">이메일은 <b>서비스 출시 안내 목적으로만</b> 사용하고 안내 후 파기합니다. 비워두셔도 정상 제출됩니다.</div>
+    <div class="errmsg">이메일 형식을 확인해 주세요</div>
+  </section>
+
+  <footer>이 설문은 익명으로 집계되며, 개별 응답은 공개되지 않습니다.<br>에메랄드웍스 주식회사 · MyNexus</footer>
+</main>
+
+<div id="doneView" class="done" hidden>
+  <div class="check">✓</div>
+  <h2>응답해 주셔서 감사합니다</h2>
+  <p>보내주신 답변은 MyNexus를 만드는 데 그대로 쓰입니다.<br>덕분에 한 걸음 더 나아갑니다. 🙏</p>
+
+  <div class="share">
+    <div class="share-t">한 분만 더 부탁드려도 될까요?</div>
+    <div class="share-s">옆에 계신 분께 이 화면을 보여주시면<br>카메라로 바로 참여할 수 있습니다</div>
+    <div class="qr" id="qr"><div class="qr-msg">QR 만드는 중…</div></div>
+    <div class="url" id="shareUrl"></div>
+    <div class="btns">
+      <button id="shareBtn" type="button">친구에게 공유하기</button>
+      <button id="copyBtn" type="button" class="sec">링크 복사</button>
+    </div>
+  </div>
+
+  <div id="againWrap" style="margin-top:14px" hidden>
+    <button id="againBtn" type="button" class="ghost">다른 분이 작성하시나요? 새로 작성하기</button>
+  </div>
+</div>
+</div>
+
+<div class="submit" id="submitBar"><div>
+  <button id="btn" type="button">응답 제출하기</button>
+</div></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyAv5Kvph7fnPHK3rH_oaSSTC8h2F5Yp7Is",
+  authDomain: "my-nexus-hub.firebaseapp.com",
+  projectId: "my-nexus-hub",
+  storageBucket: "my-nexus-hub.firebasestorage.app",
+  messagingSenderId: "397552928960",
+  appId: "1:397552928960:web:e8e522c8ab844219204525"
+});
+const db = getFirestore(app);
+
+const SRC = (new URLSearchParams(location.search).get("src") || "web")
+  .replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 20) || "web";
+const REQUIRED = ["job","q1","q2","q3","q4","q5","q6"];
+
+// ── 중복 제출 방지 ────────────────────────────────────────────
+// 익명 설문이라 서버에서 응답자를 식별할 수 없다. 기기에 표식을 남겨
+// "새로고침 후 또 제출" 같은 실수만 막고, QR로 옆사람이 이어서 쓰는
+// 정상 시나리오는 '새로 작성하기'로 열어둔다.
+const DONE_KEY = "mynexus_survey_done_v1";
+let submitting = false;
+const mark   = () => { try { localStorage.setItem(DONE_KEY, new Date().toISOString()); } catch (e) {} };
+const wasDone= () => { try { return !!localStorage.getItem(DONE_KEY); } catch (e) { return false; } };
+const clearDone = () => { try { localStorage.removeItem(DONE_KEY); } catch (e) {} };
+const bar = document.getElementById("bar");
+const btn = document.getElementById("btn");
+const emailEl = document.getElementById("email");
+
+function progress(){
+  const n = REQUIRED.filter(k => document.querySelector('input[name="' + k + '"]:checked')).length;
+  bar.style.width = (n / REQUIRED.length * 100) + "%";
+}
+
+document.addEventListener("change", function(e){
+  if (e.target.matches("input[type=radio]")) {
+    const sec = e.target.closest(".q");
+    if (sec) sec.classList.remove("err");
+    progress();
+  }
+});
+emailEl.addEventListener("input", function(){ emailEl.closest(".q").classList.remove("err"); });
+
+btn.addEventListener("click", async function(){
+  if (submitting) return;
+  let firstBad = null;
+  for (const k of REQUIRED) {
+    const sec = document.querySelector('.q[data-name="' + k + '"]');
+    const ok = !!document.querySelector('input[name="' + k + '"]:checked');
+    sec.classList.toggle("err", !ok);
+    if (!ok && !firstBad) firstBad = sec;
+  }
+  const email = emailEl.value.trim();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+    const sec = emailEl.closest(".q");
+    sec.classList.add("err");
+    if (!firstBad) firstBad = sec;
+  }
+  if (firstBad) { firstBad.scrollIntoView({behavior:"smooth", block:"center"}); return; }
+
+  submitting = true;
+  btn.disabled = true;
+  btn.textContent = "제출 중…";
+  const val = k => document.querySelector('input[name="' + k + '"]:checked').value;
+  try {
+    await addDoc(collection(db, "survey_responses"), {
+      job: val("job"),
+      q1: val("q1"), q2: val("q2"), q3: val("q3"), q4: val("q4"),
+      q5: parseInt(val("q5"), 10),
+      q6: val("q6"),
+      reason: document.getElementById("reason").value.trim().slice(0, 300),
+      email: email,
+      source: SRC,
+      createdAt: serverTimestamp()
+    });
+    mark();
+    showDone(false);
+  } catch (err) {
+    console.error(err);
+    submitting = false;
+    btn.disabled = false;
+    btn.textContent = "응답 제출하기";
+    alert("제출에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+  }
+});
+
+function showDone(returning) {
+  document.getElementById("form").hidden = true;
+  document.getElementById("submitBar").hidden = true;
+  const dv = document.getElementById("doneView");
+  if (returning) {
+    dv.querySelector("h2").textContent = "이미 응답해 주셨어요";
+    dv.querySelector("p").innerHTML =
+      "소중한 답변 감사합니다.<br>덕분에 MyNexus가 한 걸음 더 나아갑니다. 🙏";
+  }
+  dv.hidden = false;
+  document.getElementById("againWrap").hidden = false;
+  bar.style.width = "100%";
+  window.scrollTo(0, 0);
+  setupShare();
+
+  document.getElementById("againBtn").addEventListener("click", function () {
+    clearDone();
+    location.href = SHARE_URL;
+  }, { once: true });
+}
+
+// ── 제출 후 공유 (QR + 네이티브 공유 + 링크 복사) ──────────────
+// 공유 링크에는 ?src=share 를 붙여 지인 확산 유입을 따로 집계한다.
+const SHARE_URL = location.origin + location.pathname.replace(/\/$/, "") + "?src=share";
+
+function loadScript(src) {
+  return new Promise((ok, no) => {
+    const el = document.createElement("script");
+    el.src = src; el.onload = ok; el.onerror = no;
+    document.head.appendChild(el);
+  });
+}
+
+async function setupShare() {
+  document.getElementById("shareUrl").textContent = SHARE_URL.replace(/^https?:\/\//, "");
+
+  const box = document.getElementById("qr");
+  try {
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js");
+    const qr = qrcode(0, "M");
+    qr.addData(SHARE_URL);
+    qr.make();
+    box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+  } catch (e) {
+    box.innerHTML = '<div class="qr-msg">QR을 불러오지 못했습니다.<br>아래 링크를 복사해 전달해 주세요.</div>';
+  }
+
+  const shareBtn = document.getElementById("shareBtn");
+  const copyBtn = document.getElementById("copyBtn");
+
+  const copy = async (btn, done) => {
+    try {
+      await navigator.clipboard.writeText(SHARE_URL);
+      const prev = btn.textContent;
+      btn.textContent = done;
+      setTimeout(() => { btn.textContent = prev; }, 2000);
+    } catch (e) {
+      prompt("아래 링크를 복사해 주세요", SHARE_URL);
+    }
+  };
+
+  if (navigator.share) {
+    shareBtn.addEventListener("click", async () => {
+      try {
+        await navigator.share({
+          title: "저장한 자료, 다시 찾으시나요?",
+          text: "2분이면 끝나는 익명 설문이에요. 도와주시면 감사하겠습니다 🙏",
+          url: SHARE_URL
+        });
+      } catch (e) { /* 사용자가 취소한 경우 — 무시 */ }
+    });
+    copyBtn.addEventListener("click", () => copy(copyBtn, "복사됐어요 ✓"));
+  } else {
+    // 데스크톱 등 네이티브 공유가 없는 환경 — 복사 하나로 합친다
+    shareBtn.textContent = "링크 복사하기";
+    shareBtn.addEventListener("click", () => copy(shareBtn, "복사됐어요 ✓"));
+    copyBtn.hidden = true;
+  }
+}
+
+if (wasDone()) showDone(true);
+progress();
+</script>
+</body>
+</html>
