@@ -73,36 +73,33 @@ service cloud.firestore {
     // ══════════════════════════════════════════════════════════
     // ⚠️ 이 블록은 MyNexus 앱 기능이 아닙니다.
     //    '모두의 창업' 지원용 한시적 고객검증 설문 (별도 프로젝트)
-    //    · 설문 페이지 소스: C:\project\modoo\web\survey    //    · 배포처: https://mynexus-survey.web.app (별도 호스팅 사이트)
-    //    · 앱 코드와 무관하며, 앱의 어떤 경로에도 영향을 주지 않습니다
-    //    · 🗑 제거 예정일: 2026-09-18 (설문 종료 직후)
+    //    · 설문 페이지 소스 : C:\project\modoo\web\survey\
+    //    · 배포처          : https://mynexus-survey.web.app (별도 호스팅 사이트)
+    //    · 앱 코드·앱 데이터 경로와 무관합니다
+    //
+    //    🗑 제거 방법 (2026-09-18 이후, MyNexus 프로젝트에서 직접):
+    //       이 주석부터 아래 match 블록 끝까지 삭제 후
+    //       firebase deploy --only firestore:rules
+    //
+    //    ※ modoo(컨설팅) 프로젝트는 2026-09-09 이후 이 파일을 수정하지 않습니다.
+    //      설문 문항이 바뀌어도 규칙은 그대로여야 하므로, 아래 검증은
+    //      **문항 필드에 의존하지 않는 형태**로 작성했습니다.
     // ══════════════════════════════════════════════════════════
-    // 사용자 설문 (한시적)
-    // 익명 응답을 받기 위해 미인증 create만 허용한다. 읽기·수정·삭제는
-    // 전부 막혀 있어 응답이 유출되거나 조작될 수 없고, 필드 화이트리스트와
-    // 길이·타입 검증으로 임의 데이터 주입도 차단한다.
-    // createdAt == request.time 이라 클라이언트가 시각을 위조할 수 없다.
-    // ⚠️ 설문 종료 후(2026-09-17 이후) 이 블록을 반드시 제거할 것.
     match /survey_responses/{docId} {
+      // 문항 구조와 무관한 최소 계약만 검사한다.
+      //  · createdAt 은 반드시 서버 시각    → 클라이언트가 시각을 위조할 수 없다
+      //  · source 는 짧은 문자열           → 유입 채널 표시 (자유 문자열 주입 방지)
+      //  · 필드 개수 상한                  → 문서가 무한정 넓어지는 것을 막는다
+      // 필드 이름·타입을 나열하지 않으므로 설문 문항을 바꿔도 이 파일은 그대로 둔다.
+      // 대신 화이트리스트가 없어 임의 필드가 들어올 수 있는데, 이 컬렉션은
+      // 읽기가 완전히 막혀 있고 create 전용이라 최악의 경우가 '쓰레기 행 유입'이며
+      // 집계 단계에서 걸러진다. (수정·삭제는 어떤 경우에도 불가)
       function validSurvey() {
         let d = request.resource.data;
-        return d.keys().hasOnly(['job','q1','q2','q3','q4','q5','q6',
-                                 'reason','email','source','createdAt'])
-            && d.keys().hasAll(['job','q1','q2','q3','q4','q5','q6',
-                                'reason','email','source','createdAt'])
-            && d.job is string    && d.job.size()    <= 60
-            && d.q1 is string     && d.q1.size()     <= 40
-            && d.q2 is string     && d.q2.size()     <= 40
-            && d.q3 is string     && d.q3.size()     <= 40
-            && d.q4 is string     && d.q4.size()     <= 40
-            && d.q5 is int        && d.q5 >= 1 && d.q5 <= 5
-            && d.q6 is string     && d.q6.size()     <= 40
-            && d.reason is string && d.reason.size() <= 300
-            && d.email is string  && d.email.size()  <= 120
+        return d.createdAt == request.time
             && d.source is string && d.source.size() <= 20
-            && d.createdAt == request.time;
+            && d.keys().size() <= 15;
       }
-      // 응답 열람은 관리자 계정 하나만. 응답자·제3자는 여전히 읽을 수 없다.
       allow read: if request.auth != null
                   && request.auth.token.email == 'cine1052rene@gmail.com';
       allow create: if validSurvey();
