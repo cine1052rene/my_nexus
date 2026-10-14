@@ -14,6 +14,10 @@ class ChatMessage {
   /// AI 호출 없이 기기에서 처리된 응답인지 (뱃지 표시용)
   final bool isLocal;
 
+  /// AI 응답이 아직 흘러들어오는 중인지 (스트리밍).
+  /// 텍스트가 일부 보이더라도 이 동안은 다음 질문을 받지 않는다.
+  final bool isStreaming;
+
   const ChatMessage({
     required this.text,
     required this.role,
@@ -21,6 +25,7 @@ class ChatMessage {
     this.isError = false,
     this.links = const [],
     this.isLocal = false,
+    this.isStreaming = false,
   });
 
   bool get isUser => role == MessageRole.user;

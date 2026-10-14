@@ -118,8 +118,44 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
     _cachedUid = null;
   }
 
+  /// AI 응답을 스트리밍으로 받아 마지막 말풍선을 계속 갱신하고,
+  /// 완성된 전체 텍스트를 돌려준다.
+  Future<String> _streamAnswer({
+    required String prompt,
+    required List<Map<String, dynamic>> history,
+    List<LinkItem> links = const [],
+  }) async {
+    var answer = '';
+    await for (final partial in GeminiService.chatStream(
+      prompt: prompt,
+      history: history,
+    )) {
+      answer = partial;
+      _replaceLast(
+        ChatMessage(
+          text: answer,
+          role: MessageRole.bot,
+          timestamp: DateTime.now(),
+          isStreaming: true,
+        ),
+      );
+    }
+    _replaceLast(
+      ChatMessage(
+        text: answer,
+        role: MessageRole.bot,
+        timestamp: DateTime.now(),
+        links: links,
+      ),
+    );
+    return answer;
+  }
+
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
+    // 이전 응답이 아직 생성 중이면 받지 않는다. 받으면 _replaceLast가
+    // 엉뚱한 말풍선을 덮어쓴다.
+    if (ref.read(isChatLoadingProvider)) return;
 
     // 사용자 메시지 + 로딩 표시
     state = [
@@ -166,26 +202,19 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           );
           return;
         }
-        final answer = await GeminiService.chat(
+        await _streamAnswer(
           prompt: GeminiPrompts.hubSummarize(
             question: text,
             linksText: _formatLinks(result.links),
           ),
           history: const [],
-        );
-        _replaceLast(
-          ChatMessage(
-            text: answer,
-            role: MessageRole.bot,
-            timestamp: DateTime.now(),
-            links: result.links,
-          ),
+          links: result.links,
         );
         return;
       }
 
       // ── ③ 일반 대화 → 기존 LLM 경로 ──
-      final answer = await GeminiService.chat(
+      final answer = await _streamAnswer(
         prompt: text,
         history: _trimmedHistory,
       );
@@ -201,14 +230,6 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           {'text': answer},
         ],
       });
-
-      _replaceLast(
-        ChatMessage(
-          text: answer,
-          role: MessageRole.bot,
-          timestamp: DateTime.now(),
-        ),
-      );
     } catch (e) {
       _replaceLast(
         ChatMessage(
@@ -313,5 +334,6 @@ final isChatLoadingProvider = Provider<bool>((ref) {
   final msgs = ref.watch(chatProvider);
   if (msgs.isEmpty) return false;
   final last = msgs.last;
-  return last.role == MessageRole.bot && last.text.isEmpty;
+  return last.role == MessageRole.bot &&
+      (last.text.isEmpty || last.isStreaming);
 });

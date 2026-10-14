@@ -13,7 +13,9 @@ class GeminiService {
   /// 서버(Functions)의 Vertex AI 모델과 동일하게 유지할 것.
   /// 달라지면 BYOK 사용자만 다른 모델로 다른 품질의 답변을 받게 된다.
   /// → functions/index.js 의 GEMINI_MODEL 과 항상 같은 값이어야 한다.
-  static const model = 'gemini-3.5-flash-lite';
+  static const model = 'gemini-3.1-flash-lite';
+
+  static const _chatSystemInstruction = '당신은 간결하고 친절한 한국어 챗봇입니다.';
   static const _directUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent';
 
@@ -52,12 +54,14 @@ class GeminiService {
       'generationConfig': {
         'temperature': mode == 'chat' ? 0.7 : 0.9,
         'maxOutputTokens': mode == 'chat' ? 2048 : 4096,
+        // 서버 경로와 동일하게 thinking 토큰을 끈다 (출력 단가로 과금됨).
+        'thinkingConfig': {'thinkingBudget': 0},
       },
     };
     if (mode == 'chat') {
       body['systemInstruction'] = {
         'parts': [
-          {'text': '당신은 간결하고 친절한 한국어 챗봇입니다.'}
+          {'text': _chatSystemInstruction}
         ],
       };
     }
@@ -114,6 +118,44 @@ class GeminiService {
       'mode': 'chat',
     });
     return result.data['text'] as String;
+  }
+
+  /// 채팅 스트리밍 — 지금까지 받은 **누적 텍스트**를 계속 내보낸다.
+  ///
+  /// 서버 경로는 callable `stream()`으로 생성되는 조각을 받아 바로 화면에
+  /// 반영한다. 전체 생성 시간은 같지만 첫 글자가 뜨는 시점이 앞당겨진다.
+  /// BYOK 경로는 완성된 답변을 한 번에 내보낸다.
+  static Stream<String> chatStream({
+    required String prompt,
+    required List<Map<String, dynamic>> history,
+  }) async* {
+    final apiKey = await _getApiKey();
+    if (apiKey != null) {
+      yield await _directCall(
+          prompt: prompt, mode: 'chat', apiKey: apiKey, history: history);
+      return;
+    }
+
+    final buffer = StringBuffer();
+    await for (final event in _callable.stream<dynamic, dynamic>({
+      'prompt': prompt,
+      'history': history,
+      'mode': 'chat',
+    })) {
+      switch (event) {
+        case Chunk(:final partialData):
+          final piece = partialData is Map ? partialData['text'] : null;
+          if (piece is String && piece.isNotEmpty) {
+            buffer.write(piece);
+            yield buffer.toString();
+          }
+        case Result(:final result):
+          // 최종 결과가 기준이다 — 조각이 일부 유실됐더라도 완성본으로 맞춘다.
+          final data = result.data;
+          final text = data is Map ? data['text'] : null;
+          if (text is String && text != buffer.toString()) yield text;
+      }
+    }
   }
 
   /// API 키 유효성 검사 (간단한 테스트 호출)
