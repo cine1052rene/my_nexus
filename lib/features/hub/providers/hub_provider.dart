@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/link_item.dart';
 import '../../../shared/services/data/firestore_service.dart';
+import '../../../shared/services/thumbnail_store.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -100,10 +101,24 @@ class HubNotifier extends Notifier<void> {
         createdAt: DateTime.now(),
       );
       await _service.addLink(item);
+      _persistThumbnail(item);
       return null;
     } catch (e) {
       return e.toString();
     }
+  }
+
+  /// 만료되는 SNS 썸네일이면 Storage에 복사한 뒤 주소를 바꿔 둔다.
+  /// 저장을 기다리게 하지 않으려고 백그라운드로 돌린다(결과를 await 안 함).
+  /// 사본 주소는 만료 주소가 아니므로 이 갱신이 다시 복사를 부르지 않는다.
+  void _persistThumbnail(LinkItem item) {
+    if (!ThumbnailStore.needsCopy(item.thumbnailUrl)) return;
+    ThumbnailStore.copy(item.id, item.thumbnailUrl).then((copied) async {
+      if (copied == null) return;
+      try {
+        await _service.updateThumbnail(item.id, copied);
+      } catch (_) {}
+    });
   }
 
   /// 공유 시트에서 빠른 저장 (2차 중복 방지: URL 이미 존재하면 기존 항목 반환)
@@ -124,6 +139,7 @@ class HubNotifier extends Notifier<void> {
         thumbnailUrl: thumbnailUrl, tags: tags, createdAt: DateTime.now(),
       );
       await _service.addLink(item);
+      _persistThumbnail(item);
       return item;
     } catch (_) {
       return null;
@@ -133,6 +149,7 @@ class HubNotifier extends Notifier<void> {
   Future<String?> updateLink(LinkItem item) async {
     try {
       await _service.updateLink(item);
+      _persistThumbnail(item);
       return null;
     } catch (e) {
       return e.toString();
@@ -142,6 +159,7 @@ class HubNotifier extends Notifier<void> {
   Future<String?> deleteLink(String id) async {
     try {
       await _service.deleteLink(id);
+      ThumbnailStore.delete(id);
       return null;
     } catch (e) {
       return e.toString();

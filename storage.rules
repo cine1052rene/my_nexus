@@ -1,0 +1,27 @@
+rules_version = '2';
+
+// Storage 보안 규칙
+//
+// 용도: SNS 링크 썸네일 사본 보관 (users/{uid}/thumbs/{linkId}.jpg)
+// 인스타·스레드·페이스북·틱톡 CDN 썸네일 주소는 서명 만료(oe·x-expires)가
+// 걸려 있어 저장 며칠 뒤 403이 된다 (2026-10-14: 41개 중 39개 만료).
+// 그래서 저장 시점에 이미지를 받아 여기로 복사해 둔다.
+//
+// - 본인 경로만 읽기·쓰기·삭제
+// - 이미지(image/*)만, 2MB 미만만 허용 — 썸네일 외 용도로 쓰이는 것을 막는다
+// - 계정 삭제 시 deleteUserAccount가 users/{uid}/ 전체를 지운다
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /users/{uid}/thumbs/{file} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    match /{all=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,7 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 import '../models/link_item.dart';
 import '../providers/hub_provider.dart';
 import '../widgets/link_card.dart';
@@ -9,6 +7,8 @@ import '../widgets/add_link_sheet.dart';
 import '../widgets/curation_sheet.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../shared/services/share_intent_service.dart';
+import '../../../shared/services/link_metadata_service.dart';
+import '../../../shared/utils/youtube_utils.dart';
 
 class HubScreen extends ConsumerStatefulWidget {
   const HubScreen({super.key});
@@ -112,64 +112,14 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   Future<void> _updateMetadataInBackground(
       LinkItem saved, String url, String category) async {
     try {
-      String? newTitle;
-      String? newThumb = saved.thumbnailUrl;
+      final meta = await LinkMetadataService.fetch(url, category);
+      final newTitle = meta.title;
+      var newThumb = meta.thumbnailUrl ?? saved.thumbnailUrl;
       final newTags = List<String>.from(saved.tags);
 
-      if (category == 'youtube') {
-        final vid = _extractYoutubeId(url);
-        if (vid != null) {
-          final res = await http.get(Uri.parse('https://www.youtube.com/watch?v=$vid'))
-              .timeout(const Duration(seconds: 5));
-          final body = utf8.decode(res.bodyBytes, allowMalformed: true);
-          final m = RegExp(r'"title":"([^"]+)"').firstMatch(body);
-          if (m != null) {
-            newTitle = m.group(1)!.replaceAll(r'&amp;', '&');
-            final kw = YoutubeKeyword.detectFromTitle(newTitle);
-            if (kw != null && !newTags.contains(kw.label)) newTags.add(kw.label);
-          }
-        }
-      } else if (category == 'instagram' ||
-                 category == 'threads' ||
-                 category == 'twitter' ||
-                 category == 'tiktok') {
-        // Microlink API — 클라이언트 IP 기준 50req/일 무료
-        // 각 유저 기기 IP가 독립적으로 적용되므로 다수 유저에게도 안전
-        final encoded = Uri.encodeQueryComponent(url);
-        final res = await http
-            .get(Uri.parse('https://api.microlink.io?url=$encoded'))
-            .timeout(const Duration(seconds: 8));
-        final json = jsonDecode(res.body) as Map<String, dynamic>;
-        if (json['status'] == 'success') {
-          final d = json['data'] as Map<String, dynamic>;
-          final t = d['title'] as String?;
-          final img = d['image'] as Map<String, dynamic>?;
-          // 제목: 제네릭/로그인 유도 제목 제외
-          const _genericTitles = [
-            'Instagram', 'Threads • Log in', 'Log in • Instagram',
-            'TikTok', 'Log in | TikTok',
-          ];
-          if (t != null && t.isNotEmpty && !_genericTitles.contains(t)) {
-            newTitle = t;
-          }
-          // 이미지: data: URL(base64 로고) 제외, 실제 CDN URL만 사용
-          final imgUrl = img?['url'] as String?;
-          if (imgUrl != null && !imgUrl.startsWith('data:')) {
-            newThumb = imgUrl;
-          }
-        }
-      } else {
-        // 일반 사이트: OG 메타태그 직접 fetch
-        final res = await http.get(Uri.parse(url))
-            .timeout(const Duration(seconds: 5));
-        final body = utf8.decode(res.bodyBytes, allowMalformed: true);
-        final titleM = RegExp(r'<title[^>]*>([^<]+)</title>',
-            caseSensitive: false).firstMatch(body);
-        final imgM = RegExp(
-            r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"',
-            caseSensitive: false).firstMatch(body);
-        if (titleM != null) newTitle = titleM.group(1)!.trim();
-        if (imgM != null) newThumb = imgM.group(1);
+      if (category == 'youtube' && newTitle != null) {
+        final kw = YoutubeKeyword.detectFromTitle(newTitle);
+        if (kw != null && !newTags.contains(kw.label)) newTags.add(kw.label);
       }
 
       // 변경된 경우만 업데이트
@@ -234,22 +184,9 @@ class _HubScreenState extends ConsumerState<HubScreen> {
   }
 
   // ── 카테고리 자동 감지 (출처별) ───────────────────────────────────
-  String _detectCategory(String url) {
-    if (url.contains('youtube.com') || url.contains('youtu.be'))        return 'youtube';
-    if (url.contains('instagram.com'))                                   return 'instagram';
-    if (url.contains('threads.net') || url.contains('threads.com'))     return 'threads';
-    if (url.contains('tiktok.com'))                                      return 'tiktok';
-    if (url.contains('facebook.com') || url.contains('fb.com') ||
-        url.contains('fb.watch'))                                        return 'facebook';
-    if (url.contains('twitter.com') || url.contains('x.com') ||
-        url.contains('t.co'))                                            return 'twitter';
-    if (url.contains('naver.com') || url.contains('naver.me'))          return 'naver';
-    return 'etc';
-  }
+  String _detectCategory(String url) => detectLinkCategory(url);
 
-  String? _extractYoutubeId(String url) =>
-      RegExp(r'(?:youtube\.com.*v=|youtu\.be/)([a-zA-Z0-9_-]{11})')
-          .firstMatch(url)?.group(1);
+  String? _extractYoutubeId(String url) => extractYoutubeId(url);
 
   String _defaultTitle(String url, String category) {
     switch (category) {

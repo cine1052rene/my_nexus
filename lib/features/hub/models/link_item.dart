@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../shared/utils/youtube_utils.dart';
 
 class LinkItem {
   final String id;
@@ -34,21 +35,14 @@ class LinkItem {
   // TikTok 여부 판단
   bool get isTikTok => url.contains('tiktok.com');
 
-  // YouTube 비디오 ID 추출
-  String? get youTubeVideoId {
-    if (!isYouTube) return null;
-    final regExp = RegExp(
-      r'(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})',
-    );
-    final match = regExp.firstMatch(url);
-    return match?.group(1);
-  }
+  // YouTube 비디오 ID 추출 (쇼츠 포함 — youtube_utils 단일 규칙 사용)
+  String? get youTubeVideoId => isYouTube ? extractYoutubeId(url) : null;
 
-  // YouTube 썸네일 URL
+  // YouTube 썸네일 URL — 저장된 값이 없어도 ID만으로 즉시 그린다.
+  // 그래서 ID 규칙만 고치면 기존에 썸네일 없이 저장된 쇼츠도 바로 살아난다.
   String? get youTubeThumbnail {
     final vid = youTubeVideoId;
-    if (vid == null) return null;
-    return 'https://img.youtube.com/vi/$vid/maxresdefault.jpg';
+    return vid == null ? null : youtubeThumbnail(vid);
   }
 
   String get displayThumbnail => youTubeThumbnail ?? thumbnailUrl ?? '';

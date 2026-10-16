@@ -1,11 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 import '../models/link_item.dart';
 import '../providers/hub_provider.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../shared/utils/tag_utils.dart';
+import '../../../shared/utils/youtube_utils.dart';
+import '../../../shared/services/link_metadata_service.dart';
 import '../../../shared/widgets/quick_action_fields.dart';
 
 class AddLinkSheet extends ConsumerStatefulWidget {
@@ -67,57 +67,26 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
     if (url.isEmpty) return;
     setState(() => _loading = true);
 
-    try {
-      // YouTube
-      final ytMatch = RegExp(
-          r'(?:youtube\.com.*v=|youtu\.be/)([a-zA-Z0-9_-]{11})')
-          .firstMatch(url);
-      if (ytMatch != null) {
-        final vid = ytMatch.group(1)!;
-        _fetchedThumb = 'https://img.youtube.com/vi/$vid/maxresdefault.jpg';
-        // 실제 제목 가져오기
-        try {
-          final res = await http.get(
-            Uri.parse('https://www.youtube.com/watch?v=$vid'),
-          ).timeout(const Duration(seconds: 5));
-          final ytBody = utf8.decode(res.bodyBytes, allowMalformed: true);
-          final m = RegExp(r'"title":"([^"]+)"').firstMatch(ytBody);
-          if (m != null) {
-            final ytTitle = m.group(1)!
-                .replaceAll(r'&amp;', '&')
-                .replaceAll(r'&', '&');
-            if (_titleCtrl.text.isEmpty) _titleCtrl.text = ytTitle;
-            // 키워드 자동 감지
-            _applyYoutubeKeyword(ytTitle);
-          }
-        } catch (_) {}
-        if (_titleCtrl.text.isEmpty) _titleCtrl.text = 'YouTube 영상 ($vid)';
-        setState(() { _category = 'youtube'; _loading = false; });
-        return;
-      }
+    // URL로 판별되는 플랫폼이면 카테고리를 맞춘다. 판별이 안 되면('etc')
+    // 사용자가 이미 고른 카테고리를 덮어쓰지 않는다.
+    final detected = detectLinkCategory(url);
+    final category = detected == 'etc' ? _category : detected;
 
-      // TikTok
-      if (url.contains('tiktok.com')) {
-        if (_titleCtrl.text.isEmpty) _titleCtrl.text = 'TikTok 영상';
-        setState(() { _category = 'tiktok'; _loading = false; });
-        return;
-      }
+    // 예전엔 틱톡이면 아무것도 가져오지 않고 'TikTok 영상'으로 끝냈다.
+    final meta = await LinkMetadataService.fetch(url, category);
+    if (!mounted) return;
 
-      // OG 태그 파싱
-      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
-      final body = utf8.decode(res.bodyBytes, allowMalformed: true);
-      final titleM = RegExp(r'<title[^>]*>([^<]+)</title>',
-          caseSensitive: false).firstMatch(body);
-      final imgM   = RegExp(
-          r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"',
-          caseSensitive: false).firstMatch(body);
-      if (titleM != null && _titleCtrl.text.isEmpty) {
-        _titleCtrl.text = titleM.group(1)?.trim() ?? '';
-      }
-      if (imgM != null) _fetchedThumb = imgM.group(1);
-    } catch (_) {}
+    final title = meta.title;
+    if (title != null && _titleCtrl.text.isEmpty) _titleCtrl.text = title;
+    if (category == 'youtube' && title != null) _applyYoutubeKeyword(title);
+    if (meta.thumbnailUrl != null) _fetchedThumb = meta.thumbnailUrl;
 
-    setState(() => _loading = false);
+    if (_titleCtrl.text.isEmpty) {
+      final vid = extractYoutubeId(url);
+      if (vid != null) _titleCtrl.text = 'YouTube 영상 ($vid)';
+    }
+
+    setState(() { _category = category; _loading = false; });
   }
 
   /// 제목에서 YouTube 키워드 자동 감지 후 적용

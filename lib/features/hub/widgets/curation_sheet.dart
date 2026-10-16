@@ -7,6 +7,7 @@ import '../../myroom/providers/myroom_provider.dart';
 import '../../../shared/services/ai/gemini_service.dart';
 import '../../../shared/services/ai/gemini_prompts.dart';
 import '../../../shared/utils/tag_utils.dart';
+import '../../../shared/utils/youtube_utils.dart';
 
 class CurationSheet extends ConsumerStatefulWidget {
   final LinkItem item;
@@ -58,9 +59,8 @@ class _CurationSheetState extends ConsumerState<CurationSheet> {
   Future<String> _fetchDescription() async {
     try {
       final url = widget.item.url;
-      if (url.contains('youtube.com') || url.contains('youtu.be')) {
-        final vid = RegExp(r'(?:youtube\.com.*v=|youtu\.be/)([a-zA-Z0-9_-]{11})')
-            .firstMatch(url)?.group(1);
+      if (isYoutubeUrl(url)) {
+        final vid = extractYoutubeId(url);
         if (vid != null) {
           final res  = await http.get(Uri.parse('https://www.youtube.com/watch?v=$vid'))
               .timeout(const Duration(seconds: 8));
@@ -68,11 +68,12 @@ class _CurationSheetState extends ConsumerState<CurationSheet> {
           final m = RegExp(r'"shortDescription":"((?:[^"\\]|\\.)*)"')
               .firstMatch(body);
           if (m != null) {
-            return m.group(1)!
+            final text = m.group(1)!
                 .replaceAll(r'\n', '\n')
                 .replaceAll(r'\"', '"')
-                .replaceAll(r'\\', '\\')
-                .substring(0, m.group(1)!.length.clamp(0, 1500));
+                .replaceAll(r'\\', '\\');
+            // 치환 후 길이로 자른다 (원본 길이로 자르면 RangeError → 설명란 유실)
+            return text.length > 1500 ? text.substring(0, 1500) : text;
           }
         }
       } else {

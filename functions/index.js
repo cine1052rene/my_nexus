@@ -13,6 +13,8 @@ const app = admin.initializeApp();
 const db = initializeFirestore(app, { preferRest: true });
 
 const PROJECT_ID = "my-nexus-hub";
+// 2026-10-14 생성 (asia-northeast3). SNS 썸네일 사본 보관용.
+const STORAGE_BUCKET = "my-nexus-hub.firebasestorage.app";
 const LOCATION = "asia-northeast3"; // Cloud Functions 배포 리전 (서울)
 
 // ── Vertex AI 호출 리전 ───────────────────────────────────────
@@ -322,7 +324,14 @@ exports.deleteUserAccount = onCall(
       // 1. users/{uid} 문서 + 모든 서브컬렉션 재귀 삭제
       await db.recursiveDelete(db.collection("users").doc(uid));
 
-      // 2. Firebase Auth 계정 삭제
+      // 2. Storage의 사용자 파일 전체 삭제 (SNS 썸네일 사본 users/{uid}/thumbs/)
+      //    Firestore만 지우면 이미지가 고아로 남아 "모든 데이터 삭제"가 아니다.
+      await admin
+        .storage()
+        .bucket(STORAGE_BUCKET)
+        .deleteFiles({ prefix: `users/${uid}/` });
+
+      // 3. Firebase Auth 계정 삭제
       await admin.auth().deleteUser(uid);
 
       console.log(`계정 삭제 완료: ${uid}`);

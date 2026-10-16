@@ -7,6 +7,7 @@ import '../models/link_item.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../myroom/providers/myroom_provider.dart';
 import '../../../shared/utils/tag_utils.dart';
+import '../../../shared/utils/youtube_utils.dart';
 import '../../../shared/services/ai/gemini_service.dart';
 
 /// DB 허브 → 상세 학습용 컨텍스트 정리 시트
@@ -73,9 +74,8 @@ class _ContextSheetState extends ConsumerState<ContextSheet> {
   Future<String> _fetchContent() async {
     try {
       final url = widget.item.url;
-      if (url.contains('youtube.com') || url.contains('youtu.be')) {
-        final vid = RegExp(r'(?:youtube\.com.*v=|youtu\.be/)([a-zA-Z0-9_-]{11})')
-            .firstMatch(url)?.group(1);
+      if (isYoutubeUrl(url)) {
+        final vid = extractYoutubeId(url);
         if (vid != null) {
           final res  = await http.get(Uri.parse('https://www.youtube.com/watch?v=$vid'))
               .timeout(const Duration(seconds: 8));
@@ -83,12 +83,14 @@ class _ContextSheetState extends ConsumerState<ContextSheet> {
           final m    = RegExp(r'"shortDescription":"((?:[^"\\]|\\.)*)\"')
               .firstMatch(body);
           if (m != null) {
-            final raw = m.group(1)!;
-            return raw
+            final text = m.group(1)!
                 .replaceAll(r'\n', '\n')
                 .replaceAll(r'\"', '"')
-                .replaceAll(r'\\', '\\')
-                .substring(0, raw.length.clamp(0, 3000));
+                .replaceAll(r'\\', '\\');
+            // 자르는 길이는 치환 **후** 문자열 기준이어야 한다. 원본 길이로
+            // 자르면 치환으로 짧아진 문자열에서 RangeError가 나 설명란을
+            // 통째로 잃었다.
+            return text.length > 3000 ? text.substring(0, 3000) : text;
           }
         }
       } else {

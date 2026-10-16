@@ -116,6 +116,13 @@ class FirestoreService {
     _writes++;
   }
 
+  /// 썸네일 주소만 바꾼다 (Storage 사본으로 교체할 때).
+  /// 전체 문서를 다시 쓰면 그 사이 사용자가 고친 제목·메모를 덮어쓸 수 있다.
+  Future<void> updateThumbnail(String id, String thumbnailUrl) async {
+    await _linksCol.doc(id).update({'thumbnailUrl': thumbnailUrl});
+    _writes++;
+  }
+
   Future<void> deleteLink(String id) async {
     await _linksCol.doc(id).delete();
     _deletes++;
