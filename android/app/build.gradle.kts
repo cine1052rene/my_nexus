@@ -62,3 +62,9 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // 캡처 글자 인식: google_mlkit_text_recognition은 라틴 문자만 기본 포함한다.
+    // 한국어 캡처를 읽으려면 한국어 모델을 별도로 넣어야 한다 (기기 내 처리, 비용 0).
+    implementation("com.google.mlkit:text-recognition-korean:16.0.1")
+}

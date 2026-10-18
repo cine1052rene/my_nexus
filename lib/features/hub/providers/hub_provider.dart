@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/link_item.dart';
 import '../../../shared/services/data/firestore_service.dart';
 import '../../../shared/services/thumbnail_store.dart';
+import '../../../shared/services/capture_service.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -43,8 +44,10 @@ final filteredLinksProvider = Provider<AsyncValue<List<LinkItem>>>((ref) {
       // 검색어 필터
       if (search.isNotEmpty) {
         final q = search.toLowerCase();
+        // description에는 메모 본문·캡처에서 읽은 글자가 들어 있다
         result = result.where((item) =>
           item.title.toLowerCase().contains(q) ||
+          (item.description?.toLowerCase().contains(q) ?? false) ||
           (item.summary?.toLowerCase().contains(q) ?? false) ||
           (item.notes?.toLowerCase().contains(q) ?? false) ||
           item.tags.any((t) => t.toLowerCase().contains(q)),
@@ -156,10 +159,23 @@ class HubNotifier extends Notifier<void> {
     }
   }
 
+  /// 이미 id가 정해진 항목 저장 (메모·캡처 — Storage 경로와 id를 맞추기 위해)
+  Future<String?> addItem(LinkItem item) async {
+    try {
+      await _service.addLink(item);
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  String newId() => _uuid.v4();
+
   Future<String?> deleteLink(String id) async {
     try {
       await _service.deleteLink(id);
       ThumbnailStore.delete(id);
+      CaptureService.delete(id); // 캡처가 아니면 404 — 조용히 넘어간다
       return null;
     } catch (e) {
       return e.toString();

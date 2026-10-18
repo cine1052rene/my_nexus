@@ -7,6 +7,9 @@ import '../widgets/add_link_sheet.dart';
 import '../widgets/curation_sheet.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../shared/services/share_intent_service.dart';
+import '../../../shared/services/analytics_service.dart';
+import '../../../shared/providers/feature_flags_provider.dart';
+import '../services/inbox_saver.dart';
 import '../../../shared/services/link_metadata_service.dart';
 import '../../../shared/utils/youtube_utils.dart';
 
@@ -30,12 +33,12 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     super.initState();
     // Cold start (앱이 종료됐다가 공유로 실행) — getSharedText 경로
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final url = await ShareIntentService.getSharedText();
-      if (url != null && mounted) _autoSaveFromShare(url);
+      final p = await ShareIntentService.getSharedPayload();
+      if (p != null && mounted) _handleShared(p);
     });
     // Warm start (앱이 백그라운드에 있다가 공유로 복귀) — listener 경로
-    ShareIntentService.listenForSharedText((url) {
-      if (mounted) _autoSaveFromShare(url);
+    ShareIntentService.listen((p) {
+      if (mounted) _handleShared(p);
     });
   }
 
@@ -53,6 +56,44 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     setState(() => _searchActive = false);
     _searchCtrl.clear();
     ref.read(hubSearchProvider.notifier).state = '';
+  }
+
+  /// 공유받은 내용 분기 — 링크는 기존 경로, 메모·캡처는 기능 스위치가
+  /// 켜져 있을 때만 저장한다 (꺼져 있으면 이전 버전과 똑같이 동작).
+  Future<void> _handleShared(SharedPayload p) async {
+    if (p.kind == SharedKind.link) return _autoSaveFromShare(p.value);
+    // 스위치 값이 아직 안 왔을 수 있어 한 번 기다린다 (cold start 직후)
+    final flags = await ref.read(featureFlagsProvider.future)
+        .timeout(const Duration(seconds: 5), onTimeout: () => FeatureFlags.off);
+    if (!mounted) return;
+    if (!flags.captureInbox) {
+      _toast(p.kind == SharedKind.image
+          ? '이미지 저장은 아직 지원하지 않아요'
+          : '링크가 없는 글은 저장하지 않아요');
+      return;
+    }
+    if (p.kind == SharedKind.memo) {
+      final saved = await InboxSaver.saveMemo(ref, p.value);
+      if (mounted) _toast(saved == null ? '저장 실패 😢' : '📝 메모 저장됨: ${saved.title}');
+      return;
+    }
+    _toast('🖼️ 캡처 저장 중… (글자 읽는 중)', seconds: 10);
+    try {
+      final saved = await InboxSaver.saveCapture(ref, p.value);
+      if (mounted) _toast('🖼️ 캡처 저장됨: ${saved.title}');
+    } catch (_) {
+      if (mounted) _toast('캡처 저장 실패 😢');
+    }
+  }
+
+  void _toast(String msg, {int seconds = 2}) {
+    final m = ScaffoldMessenger.of(context);
+    m.hideCurrentSnackBar();
+    m.showSnackBar(SnackBar(
+      content: Text(msg),
+      behavior: SnackBarBehavior.floating,
+      duration: Duration(seconds: seconds),
+    ));
   }
 
   /// 공유 URL → 즉시 저장 → SnackBar → 백그라운드 메타데이터 업데이트
@@ -94,6 +135,8 @@ class _HubScreenState extends ConsumerState<HubScreen> {
       ));
       return;
     }
+
+    AnalyticsService.itemSaved(type: 'link', via: 'share');
 
     // ② 저장 완료 즉시 알림
     messenger.hideCurrentSnackBar();
@@ -271,6 +314,7 @@ class _HubScreenState extends ConsumerState<HubScreen> {
           preferredSize: const Size.fromHeight(36),
           child: _CategoryIconBar(
             selected: category,
+            showInbox: ref.watch(captureInboxEnabledProvider),
             onSelect: (id) =>
                 ref.read(hubCategoryProvider.notifier).state = id,
           ),
@@ -391,8 +435,14 @@ class _GridBody extends StatelessWidget {
 class _CategoryIconBar extends StatelessWidget {
   final String selected;
   final void Function(String id) onSelect;
+  /// 메모·캡처 칩 표시 여부 (기능 스위치 config/features.captureInbox)
+  final bool showInbox;
 
-  const _CategoryIconBar({required this.selected, required this.onSelect});
+  const _CategoryIconBar({
+    required this.selected,
+    required this.onSelect,
+    required this.showInbox,
+  });
 
   // 출처별 브랜드 컬러
   static const _colors = <String, Color>{
@@ -405,6 +455,8 @@ class _CategoryIconBar extends StatelessWidget {
     'twitter':   Color(0xFF000000),
     'naver':     Color(0xFF03C75A),
     'etc':       Color(0xFF607D8B),
+    'memo':      Color(0xFFF59E0B),
+    'capture':   Color(0xFF0EA5E9),
   };
 
   // Material 아이콘 (브랜드 아이콘 없는 경우 대체)
@@ -414,6 +466,8 @@ class _CategoryIconBar extends StatelessWidget {
     'instagram': Icons.camera_alt,
     'tiktok':    Icons.music_note,
     'etc':       Icons.link,
+    'memo':      Icons.sticky_note_2_outlined,
+    'capture':   Icons.image_outlined,
   };
 
   // 브랜드 텍스트 아이콘 (Material 아이콘 없는 경우)
@@ -448,7 +502,9 @@ class _CategoryIconBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cats = HubCategory.all_list;
+    final cats = HubCategory.all_list
+        .where((c) => showInbox || !HubCategory.inboxIds.contains(c.id))
+        .toList();
     return SizedBox(
       height: 36,
       child: ListView(

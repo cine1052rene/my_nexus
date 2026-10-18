@@ -3,6 +3,7 @@
     <!-- Direct Share: 공유 시트 상단에 MyNexus 바로 노출 -->
     <share-target android:targetClass="com.personal.nexus.my_nexus.MainActivity">
         <data android:mimeType="text/plain"/>
+        <data android:mimeType="image/*"/>
         <category android:name="com.personal.nexus.my_nexus.SHARE_TARGET"/>
     </share-target>
 </shortcuts>

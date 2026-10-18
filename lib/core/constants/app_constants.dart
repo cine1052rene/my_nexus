@@ -26,10 +26,16 @@ class HubCategory {
   static const twitter   = HubCategory(id: 'twitter',   label: '트위터', emoji: '🐦');
   static const naver     = HubCategory(id: 'naver',     label: '네이버', emoji: '🟢');
   static const etc       = HubCategory(id: 'etc',       label: '기타',   emoji: '🔗');
+  // 링크가 아닌 저장물 (2026-10-18, 기능 스위치 config/features.captureInbox)
+  static const memo      = HubCategory(id: 'memo',      label: '메모',   emoji: '📝');
+  static const capture   = HubCategory(id: 'capture',   label: '캡처',   emoji: '🖼️');
 
   static const List<HubCategory> all_list = [
-    all, youtube, instagram, threads, tiktok, facebook, twitter, naver, etc,
+    all, memo, capture, youtube, instagram, threads, tiktok, facebook, twitter, naver, etc,
   ];
+
+  /// 링크가 아닌 저장물 카테고리 (기능 스위치가 꺼지면 필터 칩에서 숨긴다)
+  static const inboxIds = {'memo', 'capture'};
 
   static HubCategory fromId(String id) =>
       all_list.firstWhere((c) => c.id == id, orElse: () => etc);

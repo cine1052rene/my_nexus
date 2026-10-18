@@ -20,6 +20,16 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    // 공유받은 캡처 이미지 (2026-10-18). 앱이 JPEG로 압축해 올린다(보통 수백 KB).
+    // 썸네일보다 크게 5MB 미만까지 허용. 그 외 조건은 썸네일과 같다.
+    match /users/{uid}/captures/{file} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
     match /{all=**} {
       allow read, write: if false;
     }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/link_item.dart';
+import 'hub_item_opener.dart';
 import '../../../core/constants/app_constants.dart';
 
 /// 뷰모드에 따라 List / Grid / Compact 카드를 렌더링
@@ -40,6 +40,9 @@ class _ListCard extends StatelessWidget {
   const _ListCard({required this.item, required this.onEdit, required this.onDelete, required this.onCurate});
 
   String _domain() {
+    if (HubCategory.inboxIds.contains(item.category)) {
+      return HubCategory.fromId(item.category).label;
+    }
     try { return Uri.parse(item.url).host.replaceFirst('www.', ''); }
     catch (_) { return ''; }
   }
@@ -50,10 +53,7 @@ class _ListCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: () async {
-          final uri = Uri.tryParse(item.url);
-          if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
-        },
+        onTap: () => openHubItem(context, item),
         borderRadius: BorderRadius.circular(12),
         child: SizedBox(
           height: 96,
@@ -164,10 +164,7 @@ class _GridCard extends StatelessWidget {
     'etc':       Color(0xFF607D8B),
   };
 
-  Future<void> _open() async {
-    final uri = Uri.tryParse(item.url);
-    if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  Future<void> _open(BuildContext context) => openHubItem(context, item);
 
   // 마이룸 ClipCard와 동일 — 꾹 눌러서 옵션 표시
   void _showOptions(BuildContext context) {
@@ -176,7 +173,7 @@ class _GridCard extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => SafeArea(
+      builder: (sheetCtx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 8),
           Container(
@@ -190,22 +187,22 @@ class _GridCard extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.open_in_new),
             title: const Text('열기'),
-            onTap: () { Navigator.pop(context); _open(); },
+            onTap: () { Navigator.pop(sheetCtx); _open(context); },
           ),
           ListTile(
             leading: const Icon(Icons.school_outlined),
             title: const Text('큐레이션'),
-            onTap: () { Navigator.pop(context); onCurate(); },
+            onTap: () { Navigator.pop(sheetCtx); onCurate(); },
           ),
           ListTile(
             leading: const Icon(Icons.edit_outlined),
             title: const Text('수정'),
-            onTap: () { Navigator.pop(context); onEdit(); },
+            onTap: () { Navigator.pop(sheetCtx); onEdit(); },
           ),
           ListTile(
             leading: const Icon(Icons.delete_outline, color: Colors.red),
             title: const Text('삭제', style: TextStyle(color: Colors.red)),
-            onTap: () { Navigator.pop(context); onDelete(); },
+            onTap: () { Navigator.pop(sheetCtx); onDelete(); },
           ),
           const SizedBox(height: 8),
         ]),
@@ -223,7 +220,7 @@ class _GridCard extends StatelessWidget {
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: GestureDetector(
-        onTap: _open,
+        onTap: () => _open(context),
         onLongPress: () => _showOptions(context),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // 썸네일 16:9 — 메뉴 없음 (꾹 눌러서 옵션)
@@ -317,10 +314,7 @@ class _CompactRow extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
       child: InkWell(
-        onTap: () async {
-          final uri = Uri.tryParse(item.url);
-          if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
-        },
+        onTap: () => openHubItem(context, item),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -331,7 +325,7 @@ class _CompactRow extends StatelessWidget {
               Text(item.title,
                   style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
-              Text(_domain(item.url),
+              Text((HubCategory.inboxIds.contains(item.category) ? HubCategory.fromId(item.category).label : _domain(item.url)),
                   style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
             ])),

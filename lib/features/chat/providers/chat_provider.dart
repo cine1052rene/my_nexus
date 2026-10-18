@@ -6,6 +6,7 @@ import '../services/chat_query_executor.dart';
 import '../../hub/models/link_item.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../shared/services/ai/gemini_service.dart';
+import '../../../shared/services/analytics_service.dart';
 import '../../../shared/services/ai/gemini_prompts.dart';
 import '../../../shared/services/data/firestore_service.dart';
 export '../../../shared/providers/usage_limits_provider.dart';
@@ -175,6 +176,7 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
       // 네트워크 호출 없음 → 비용 0원, 한도 미차감, 환각 불가
       if (query.isLocal) {
         final result = ChatQueryExecutor.run(query, await _links());
+        AnalyticsService.chatQuery(local: true, results: result.links.length);
         _replaceLast(
           ChatMessage(
             text: result.text,
@@ -191,6 +193,7 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
       // 전체 목록을 통째로 보내지 않으므로 토큰이 극적으로 줄어든다
       if (query.needsLlm) {
         final result = ChatQueryExecutor.run(query, await _links());
+        AnalyticsService.chatQuery(local: false, results: result.links.length);
         if (result.isEmpty) {
           _replaceLast(
             ChatMessage(
@@ -254,9 +257,13 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
   static String _formatLinks(List<LinkItem> links) {
     return links
         .map((l) {
+          final isInbox = l.category == 'memo' || l.category == 'capture';
           final parts = <String>[
             '[${l.category}] ${l.title}',
-            '  URL: ${l.url}',
+            // 메모·캡처는 URL이 없거나 Storage 주소라 AI에 쓸모가 없다 — 본문을 대신 준다
+            if (!isInbox) '  URL: ${l.url}',
+            if (isInbox && (l.description ?? '').isNotEmpty)
+              '  내용: ${l.description!.length > 400 ? l.description!.substring(0, 400) : l.description}',
           ];
           if (l.summary != null && l.summary!.isNotEmpty) {
             parts.add('  요약: ${l.summary}');

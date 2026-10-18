@@ -6,6 +6,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../shared/utils/tag_utils.dart';
 import '../../../shared/utils/youtube_utils.dart';
 import '../../../shared/services/link_metadata_service.dart';
+import '../../../shared/services/analytics_service.dart';
 import '../../../shared/widgets/quick_action_fields.dart';
 
 class AddLinkSheet extends ConsumerStatefulWidget {
@@ -132,6 +133,7 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
         tags: tags,
       ));
     } else {
+      AnalyticsService.itemSaved(type: 'link', via: 'manual');
       err = await notifier.addLink(
         url: _urlCtrl.text.trim(), title: _titleCtrl.text.trim(),
         category: _category, thumbnailUrl: _fetchedThumb,
