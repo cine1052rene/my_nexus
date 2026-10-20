@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show debugPrint;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -67,8 +69,11 @@ class CaptureService {
       final result =
           await recognizer.processImage(InputImage.fromFilePath(imagePath));
       return result.text.trim();
-    } catch (_) {
-      return ''; // 글자 인식 실패해도 이미지는 저장한다
+    } catch (e, st) {
+      // 실패해도 이미지는 저장한다. 다만 원인은 반드시 남긴다 — 예전엔 조용히
+      // 삼켜서 실기기에서 0자 인식이 "성공"처럼 보였다(2026-10-20).
+      debugPrint('[CaptureService] OCR 실패: $e\n$st');
+      return '';
     } finally {
       await recognizer.close();
     }

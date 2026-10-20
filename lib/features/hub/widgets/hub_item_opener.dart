@@ -50,7 +50,9 @@ Future<void> _showCapture(BuildContext context, LinkItem item) {
         Positioned(
           top: 8, right: 8,
           child: SafeArea(
-            child: IconButton(
+            // 흰 캡처 위에서도 보이도록 어두운 원형 배경 (실기기에서 X가 묻혔음)
+            child: IconButton.filled(
+              style: IconButton.styleFrom(backgroundColor: Colors.black54),
               icon: const Icon(Icons.close, color: Colors.white),
               onPressed: () => Navigator.pop(dialogCtx),
             ),

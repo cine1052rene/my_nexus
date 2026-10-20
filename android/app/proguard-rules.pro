@@ -4,3 +4,11 @@
 -dontwarn com.google.mlkit.vision.text.chinese.**
 -dontwarn com.google.mlkit.vision.text.devanagari.**
 -dontwarn com.google.mlkit.vision.text.japanese.**
+
+# ML Kit은 내부 부품을 리플렉션으로 등록한다. R8이 이를 지우거나 이름을 바꾸면
+# 실기기에서 TextRecognizer가 NullPointerException
+# (mlkit_vision_common ... getClass() on a null object)으로 실패한다.
+# 2026-10-20 S23 Ultra에서 실제로 발생 — 글자 인식 0자. ML Kit 전체를 보존한다.
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.internal.mlkit_vision_** { *; }
+-keep class com.google.android.gms.vision.** { *; }
