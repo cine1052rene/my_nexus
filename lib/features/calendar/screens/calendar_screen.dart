@@ -6,6 +6,7 @@ import '../models/schedule_event.dart';
 import '../data/korean_holidays.dart';
 import '../../../core/utils/lunar_converter.dart';
 import '../../../shared/services/calendar/google_calendar_service.dart';
+import '../../../shared/providers/feature_flags_provider.dart';
 import 'add_event_sheet.dart';
 
 class CalendarScreen extends ConsumerWidget {
@@ -16,7 +17,10 @@ class CalendarScreen extends ConsumerWidget {
     final selectedDay = ref.watch(selectedDayProvider);
     final focusedDay = ref.watch(focusedDayProvider);
     final lunar = ref.watch(lunarEnabledProvider);
-    final googleEnabled = ref.watch(googleCalendarEnabledProvider);
+    final calendarFeature = ref.watch(googleCalendarFeatureProvider);
+    // 스위치가 꺼지면 이미 켜 둔 연동도 쓰지 않는다 (권한 요청·조회 모두 중단)
+    final googleEnabled =
+        calendarFeature && ref.watch(googleCalendarEnabledProvider);
 
     // Firestore 이벤트
     final firestoreEvents = ref.watch(dayEventsProvider(selectedDay));
@@ -24,7 +28,7 @@ class CalendarScreen extends ConsumerWidget {
     // 구글 캘린더 이벤트 (해당 월 전체 → 선택일 필터)
     final monthKey = DateTime(selectedDay.year, selectedDay.month, 1);
     final googleAsync = ref.watch(googleCalendarEventsProvider(monthKey));
-    final googleEvents = googleAsync.when(
+    final googleEvents = !googleEnabled ? <ScheduleEvent>[] : googleAsync.when(
       data: (list) => list.where((e) => e.occursOn(selectedDay)).toList(),
       loading: () => <ScheduleEvent>[],
       error: (_, __) => <ScheduleEvent>[],
@@ -48,7 +52,8 @@ class CalendarScreen extends ConsumerWidget {
             tooltip: '음력 표시',
             onPressed: () => ref.read(lunarEnabledProvider.notifier).state = !lunar,
           ),
-          // 구글 캘린더 토글
+          // 구글 캘린더 토글 — OAuth 심사 전이라 기능 스위치로 숨긴다
+          if (calendarFeature)
           IconButton(
             icon: Icon(
               Icons.calendar_today,

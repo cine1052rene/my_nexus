@@ -13,9 +13,14 @@ class FeatureFlags {
   /// 메모·캡처(이미지+글자 인식) 저장. 2026-10-18 도입, 베타 검증용.
   final bool captureInbox;
 
-  const FeatureFlags({required this.captureInbox});
+  /// 구글 캘린더 연동 버튼. calendar.readonly는 구글 OAuth 심사 대상(민감 스코프)이라
+  /// 심사 전에는 일반 사용자에게 "확인되지 않은 앱" 경고가 뜨거나 차단된다.
+  /// 심사 통과 후 콘솔에서 true로 켜면 앱 업데이트 없이 버튼이 나타난다. (2026-11-19)
+  final bool googleCalendar;
 
-  static const off = FeatureFlags(captureInbox: false);
+  const FeatureFlags({required this.captureInbox, required this.googleCalendar});
+
+  static const off = FeatureFlags(captureInbox: false, googleCalendar: false);
 }
 
 final featureFlagsProvider = StreamProvider<FeatureFlags>((ref) {
@@ -27,9 +32,17 @@ final featureFlagsProvider = StreamProvider<FeatureFlags>((ref) {
       .snapshots()
       .map((doc) {
         final d = doc.data();
-        return FeatureFlags(captureInbox: d?['captureInbox'] == true);
+        return FeatureFlags(
+          captureInbox: d?['captureInbox'] == true,
+          googleCalendar: d?['googleCalendar'] == true,
+        );
       })
       .handleError((_) => FeatureFlags.off);
+});
+
+/// 구글 캘린더 연동 버튼 표시 여부 (기능 스위치 config/features.googleCalendar)
+final googleCalendarFeatureProvider = Provider<bool>((ref) {
+  return ref.watch(featureFlagsProvider).valueOrNull?.googleCalendar ?? false;
 });
 
 /// 화면에서 바로 쓰는 값 (로딩 중·오류는 꺼짐으로 취급)
