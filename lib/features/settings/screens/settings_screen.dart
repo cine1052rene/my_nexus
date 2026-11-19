@@ -586,7 +586,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final desc = switch (tabId) {
       'hub'      => '링크·자료 저장 및 분류',
       'calendar' => '일정 관리 달력',
-      'chat'     => 'Gemini AI 챗봇',
+      'chat'     => 'AI 챗봇',
       'myroom'   => 'YouTube·TikTok·Reels 영상 큐레이션',
       _          => null,
     };
