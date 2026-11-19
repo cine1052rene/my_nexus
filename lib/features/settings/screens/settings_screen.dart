@@ -88,7 +88,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 // 실제 분기 기준은 '프리미엄 여부'가 아니라 **어느 쿼터를 쓰는가**다.
                 // GeminiService는 저장된 키가 있으면 무조건 그 키로 직접 호출하고,
                 // 없을 때만 서버(Functions)를 탄다. 그래서 키가 있으면
-                // 프리미엄이든 무료든 한도와 무관하게 무제한이다.
+                // 프리미엄이든 무료든 앱 한도와 무관하다. 단 구글 쪽 무료 등급 한도나
+                // 본인 계정 요금은 그대로 적용되므로 화면에 '무제한'이라고 쓰지 않는다.
                 ListTile(
                   leading: Container(
                     width: 40, height: 40,
@@ -113,7 +114,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   subtitle: Text(
                     usingOwnKey
-                        ? '내 Gemini 키로 무제한 사용 중'
+                        ? '내 Gemini 키로 사용 중 · 앱 한도 미적용'
                         : isPremium
                             ? '일일 한도 없이 사용'
                             : '일 ${limits.daily}회 · 월 ${limits.monthly}회 무료',
@@ -131,7 +132,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     child: Text(
                       usingOwnKey
-                          ? '무제한 ✓'
+                          ? '내 키 ✓'
                           : (isPremium ? '프리미엄 ✓' : '활성 ✓'),
                       style: TextStyle(
                         fontSize: 12,
@@ -241,8 +242,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                     child: Text(
                       apiKey.isNotEmpty
-                          ? '✓ 내 키로 호출 중이라 일일 한도가 적용되지 않아요'
-                          : '내 키를 연동하면 일 ${limits.daily}회 한도 없이 사용할 수 있어요 (사용료는 본인 Google 계정에 청구)',
+                          ? '✓ 내 키로 호출 중이라 앱의 일일 한도가 적용되지 않아요. 구글의 무료 등급 한도 또는 본인 계정 요금은 그대로 적용돼요'
+                          : '내 Gemini 키를 연동하면 앱의 일 ${limits.daily}회 한도 없이 쓸 수 있어요. 구글의 무료 등급 한도 또는 본인 계정 요금이 적용되며, Google AI 구독과는 별개예요',
                       style: TextStyle(
                         fontSize: 11,
                         color: apiKey.isNotEmpty

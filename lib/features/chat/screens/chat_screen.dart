@@ -97,7 +97,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                isUnlimited ? '무제한' : '$remaining회 남음',
+                isUnlimited ? '내 키' : '$remaining회 남음',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
