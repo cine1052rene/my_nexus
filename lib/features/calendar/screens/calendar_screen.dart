@@ -88,7 +88,7 @@ class CalendarScreen extends ConsumerWidget {
                       _formatDate(selectedDay),
                       style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
                     ),
-                    if (lunar)
+                    if (lunar && lunarDate != null)
                       Text(lunarDate.toString(),
                           style: const TextStyle(fontSize: 11, color: Color(0xFF6C63FF))),
                   ],
@@ -311,7 +311,11 @@ class _CalendarWidget extends StatelessWidget {
                                   color: textColor,
                                 )),
                             if (lunarDate != null)
-                              Text('${lunarDate.day}',
+                              // 초하루는 달도 함께 표시 (예: 10.1, 윤6.1)
+                              Text(
+                                  lunarDate.day == 1
+                                      ? '${lunarDate.isLeap ? '윤' : ''}${lunarDate.month}.1'
+                                      : '${lunarDate.day}',
                                   style: TextStyle(
                                     fontSize: 8,
                                     color: isSelected
