@@ -1,14 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:http/http.dart' as http;
 import '../models/link_item.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../myroom/providers/myroom_provider.dart';
 import '../../../shared/utils/tag_utils.dart';
 import '../../../shared/utils/youtube_utils.dart';
-import '../../../shared/services/ai/gemini_service.dart';
+import '../../../shared/services/ai/ai_service.dart';
 
 /// DB 허브 → 상세 학습용 컨텍스트 정리 시트
 /// 큐레이션보다 훨씬 상세한 내용 정리 + 마이룸 저장
@@ -54,10 +53,10 @@ class _ContextSheetState extends ConsumerState<ContextSheet> {
 
     try {
       final rawContent = await _fetchContent();
-      // 모델명은 GeminiService._model 과 맞출 것 (BYOK 경로라 여기도 사용자 키를 쓴다)
-      final model      = GenerativeModel(model: GeminiService.model, apiKey: apiKey);
-      final response   = await model.generateContent([Content.text(_buildPrompt(rawContent))]);
-      final content    = response.text?.trim() ?? '내용을 정리하지 못했어요.';
+      // 키가 있으므로 AiService가 개인 키 경로(BYOK)로 호출한다.
+      // 예전엔 google_generative_ai 패키지로 따로 불러 모델명이 두 곳에 있었다.
+      final answer  = (await AiService.generate(_buildPrompt(rawContent))).trim();
+      final content = answer.isEmpty ? '내용을 정리하지 못했어요.' : answer;
 
       if (!mounted) return;
       setState(() {

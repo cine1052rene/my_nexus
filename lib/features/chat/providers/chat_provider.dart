@@ -5,9 +5,10 @@ import '../services/chat_query_parser.dart';
 import '../services/chat_query_executor.dart';
 import '../../hub/models/link_item.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../../shared/services/ai/gemini_service.dart';
+import '../../../shared/services/ai/ai_service.dart';
+import '../../../shared/services/ai/ai_turn.dart';
 import '../../../shared/services/analytics_service.dart';
-import '../../../shared/services/ai/gemini_prompts.dart';
+import '../../../shared/services/ai/ai_prompts.dart';
 import '../../../shared/services/data/firestore_service.dart';
 export '../../../shared/providers/usage_limits_provider.dart';
 
@@ -54,8 +55,8 @@ final chatMonthlyUsageProvider = StreamProvider<int>((ref) {
 final hubInjectedProvider = StateProvider<bool>((ref) => false);
 
 class ChatNotifier extends Notifier<List<ChatMessage>> {
-  /// Gemini 형식의 대화 히스토리 (일반 대화용)
-  final List<Map<String, dynamic>> _history = [];
+  /// 대화 히스토리 (일반 대화용, 회사 중립 형식)
+  final List<AiTurn> _history = [];
 
   /// 로컬 쿼리용 링크 캐시
   List<LinkItem> _linkCache = const [];
@@ -84,7 +85,7 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
   /// 한 번에 조회할 링크 최대 개수
   static const int _linkFetchLimit = 300;
 
-  List<Map<String, dynamic>> get _trimmedHistory {
+  List<AiTurn> get _trimmedHistory {
     if (_history.length <= _maxHistoryTurns * 2) return List.from(_history);
     return List.from(_history.sublist(_history.length - _maxHistoryTurns * 2));
   }
@@ -123,11 +124,11 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
   /// 완성된 전체 텍스트를 돌려준다.
   Future<String> _streamAnswer({
     required String prompt,
-    required List<Map<String, dynamic>> history,
+    required List<AiTurn> history,
     List<LinkItem> links = const [],
   }) async {
     var answer = '';
-    await for (final partial in GeminiService.chatStream(
+    await for (final partial in AiService.chatStream(
       prompt: prompt,
       history: history,
     )) {
@@ -206,7 +207,7 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           return;
         }
         await _streamAnswer(
-          prompt: GeminiPrompts.hubSummarize(
+          prompt: AiPrompts.hubSummarize(
             question: text,
             linksText: _formatLinks(result.links),
           ),
@@ -221,18 +222,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
         prompt: text,
         history: _trimmedHistory,
       );
-      _history.add({
-        'role': 'user',
-        'parts': [
-          {'text': text},
-        ],
-      });
-      _history.add({
-        'role': 'model',
-        'parts': [
-          {'text': answer},
-        ],
-      });
+      _history
+        ..add(AiTurn.user(text))
+        ..add(AiTurn.assistant(answer));
     } catch (e) {
       _replaceLast(
         ChatMessage(

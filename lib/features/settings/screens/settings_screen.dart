@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/settings_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/tab_defs.dart';
-import '../../../shared/services/ai/gemini_service.dart';
+import '../../../shared/services/ai/ai_service.dart';
 import '../../../shared/providers/usage_limits_provider.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -22,7 +22,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final apiKey      = ref.watch(geminiApiKeyProvider).valueOrNull ?? '';
     final featureMap  = tabFeatures.valueOrNull ?? {};
 
-    // 키가 있으면 GeminiService가 서버를 거치지 않고 그 키로 직접 호출한다.
+    // 키가 있으면 AiService가 서버를 거치지 않고 그 키로 직접 호출한다.
     // 프리미엄 여부와 무관하게 이게 실제 사용 경로를 결정한다.
     final usingOwnKey = apiKey.isNotEmpty;
 
@@ -86,7 +86,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 // 현재 플랜 상태
                 //
                 // 실제 분기 기준은 '프리미엄 여부'가 아니라 **어느 쿼터를 쓰는가**다.
-                // GeminiService는 저장된 키가 있으면 무조건 그 키로 직접 호출하고,
+                // AiService는 저장된 키가 있으면 무조건 그 키로 직접 호출하고,
                 // 없을 때만 서버(Functions)를 탄다. 그래서 키가 있으면
                 // 프리미엄이든 무료든 앱 한도와 무관하다. 단 구글 쪽 무료 등급 한도나
                 // 본인 계정 요금은 그대로 적용되므로 화면에 '무제한'이라고 쓰지 않는다.
@@ -519,7 +519,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       if (key.isEmpty) return;
 
                       setDlgState(() => validating = true);
-                      final valid = await GeminiService.validateApiKey(key);
+                      final valid = await AiService.validateApiKey(key);
                       if (!ctx.mounted) return;
 
                       if (!valid) {

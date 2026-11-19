@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../models/link_item.dart';
 import '../../myroom/providers/myroom_provider.dart';
-import '../../../shared/services/ai/gemini_service.dart';
-import '../../../shared/services/ai/gemini_prompts.dart';
+import '../../../shared/services/ai/ai_service.dart';
+import '../../../shared/services/ai/ai_prompts.dart';
 import '../../../shared/utils/tag_utils.dart';
 import '../../../shared/utils/youtube_utils.dart';
 
@@ -42,7 +42,7 @@ class _CurationSheetState extends ConsumerState<CurationSheet> {
   Future<void> _curate() async {
     try {
       final description = await _fetchDescription();
-      final summary = await GeminiService.generate(_buildPrompt(description));
+      final summary = await AiService.generate(_buildPrompt(description));
 
       if (!mounted) return;
       setState(() {
@@ -92,7 +92,7 @@ class _CurationSheetState extends ConsumerState<CurationSheet> {
     return '';
   }
 
-  String _buildPrompt(String description) => GeminiPrompts.curation(
+  String _buildPrompt(String description) => AiPrompts.curation(
         title: widget.item.title,
         url: widget.item.url,
         description: description,

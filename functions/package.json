@@ -1,10 +1,11 @@
 {
   "name": "functions",
-  "description": "MyNexus Cloud Functions - Gemini AI Proxy",
+  "description": "MyNexus Cloud Functions - AI proxy (provider via config/ai)",
   "scripts": {
     "serve": "firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "test": "node --test test/ai.test.js"
   },
   "engines": {
     "node": "20"

@@ -1,6 +1,6 @@
 import '../../../features/email/models/email_message.dart';
-import '../ai/gemini_service.dart';
-import '../ai/gemini_prompts.dart';
+import '../ai/ai_service.dart';
+import '../ai/ai_prompts.dart';
 
 /// Gemini AI 기반 이메일 분류 + 요약 서비스
 /// Firebase Functions 프록시를 통해 API 키 없이 동작
@@ -11,12 +11,12 @@ class EmailAiService {
     required String snippet,
   }) async {
     try {
-      final prompt = GeminiPrompts.emailClassify(
+      final prompt = AiPrompts.emailClassify(
         subject: subject,
         snippet: snippet,
       );
 
-      final text = (await GeminiService.generate(prompt)).trim().toLowerCase();
+      final text = (await AiService.generate(prompt)).trim().toLowerCase();
 
       if (text.startsWith('work'))         return EmailCategory.work;
       if (text.startsWith('personal'))     return EmailCategory.personal;
@@ -34,8 +34,8 @@ class EmailAiService {
     required String body,
   }) async {
     try {
-      final prompt = GeminiPrompts.emailSummarize(subject: subject, body: body);
-      return await GeminiService.generate(prompt);
+      final prompt = AiPrompts.emailSummarize(subject: subject, body: body);
+      return await AiService.generate(prompt);
     } catch (_) {
       return null;
     }

@@ -1,5 +1,4 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const { GoogleGenAI } = require("@google/genai");
 const admin = require("firebase-admin");
 const { initializeFirestore } = require("firebase-admin/firestore");
 
@@ -12,43 +11,26 @@ const app = admin.initializeApp();
 // 실시간 리스너처럼 gRPC가 필요한 기능을 쓰면 SDK가 알아서 gRPC로 전환한다.
 const db = initializeFirestore(app, { preferRest: true });
 
-const PROJECT_ID = "my-nexus-hub";
 // 2026-10-14 생성 (asia-northeast3). SNS 썸네일 사본 보관용.
 const STORAGE_BUCKET = "my-nexus-hub.firebasestorage.app";
 const LOCATION = "asia-northeast3"; // Cloud Functions 배포 리전 (서울)
 
-// ── Vertex AI 호출 리전 ───────────────────────────────────────
+// ── AI 모델 ───────────────────────────────────────────────────
 //
-// Functions 배포 리전(LOCATION)과 **반드시 분리해서 쓸 것.**
-// Gemini 3.x 계열은 asia-northeast3에 아예 배포돼 있지 않아
-// 지역 엔드포인트로 호출하면 404 "Publisher model not found"가 난다.
-// (2026-09-03 실측: 3.5-flash-lite / 3.5-flash / 3.6-flash / 3.7-flash 전부
-//  asia-northeast3 404, global OK. 2.5-flash만 둘 다 OK였음)
+// 어느 회사·모델을 쓸지는 Firestore `config/ai` 문서가 정한다 (functions/ai/).
+// 콘솔에서 문서만 바꾸면 재배포·앱 업데이트 없이 1분 안에 바뀐다.
+// 회사별 호출 코드는 functions/ai/providers/, 전환 절차는 functions/ai/README.md.
 //
-// 즉 모델명만 바꾸고 리전을 그대로 두면 챗봇이 통째로 죽는다.
-// global 엔드포인트는 지역 데이터 레지던시를 보장하지 않는다 —
-// 개인정보처리방침 5항에 Vertex AI 위탁이 이미 고지돼 있고
-// 지역 관련 문구는 없으므로 현재 방침과 충돌하지 않는다.
-const VERTEX_LOCATION = "global";
+// 2026-10-14 기준 기본값 gemini-3.1-flash-lite 선정 근거:
+//   100만 토큰당 $0.25 / $1.50 (3.5-flash-lite $0.30 / $2.50보다 출력 -40%)
+//   global 엔드포인트 응답 1.0~1.3초, 답변 품질 3.5와 같거나 나음.
+//   운영비의 90%가 챗봇 출력 토큰이라 출력 단가가 곧 원가다.
+const ai = require("./ai");
 
-// ── 사용 모델 ─────────────────────────────────────────────────
-//
-// 100만 토큰당 단가 (입력/출력), 2026-10-14 공식 가격표 기준:
-//   gemini-3.1-flash-lite $0.25 / $1.50   ← 채택 (Vertex 지원 2027-05-07 이후까지)
-//   gemini-3.5-flash-lite $0.30 / $2.50   ← 직전 모델 (2026-09-03~10-14)
-//   gemini-2.5-flash-lite $0.10 / $0.40   ← 2026-10-20 지원 종료라 탈락
-//   gemini-3.6-flash      $0.75 / $3.75 → 2027-01-01부터 $1.50 / $7.50
-//
-// 운영비의 90%가 챗봇 LLM이고 그중 출력 토큰이 대부분이라, 출력 단가가
-// 곧 원가다. 3.5→3.1 교체로 출력 단가가 40% 내려간다.
-// 2026-10-14 global 엔드포인트 실측 (같은 링크 추천 질문 4회):
-//   3.5-flash-lite 1.1~1.4초 / 3.1-flash-lite 1.0~1.3초 / 2.5-flash-lite 2.3~2.5초
-// 답변 품질은 3.1이 오히려 나았다 (링크 4개 모두 활용, 3.5는 띄어쓰기 누락).
-// thinkingBudget=0이라 추론 성능이 필요한 구간이 아니다.
-//
-// ⚠️ 모델을 바꿀 땐 VERTEX_LOCATION 지원 여부를 먼저 실측할 것.
-// ⚠️ lib/shared/services/ai/gemini_service.dart 의 model 과 같은 값이어야 한다.
-const GEMINI_MODEL = "gemini-3.1-flash-lite";
+// 다른 회사 키(Secret Manager)를 쓸 때 여기에 이름을 추가하고 배포한다.
+// 존재하지 않는 시크릿을 적으면 배포가 실패하므로, 시크릿을 먼저 만들 것.
+// 예: ["OPENAI_API_KEY"]
+const ENABLED_AI_SECRETS = [];
 
 // 앱 말풍선은 일반 Text라 마크다운 기호(**, #, *)가 그대로 보인다 (2026-11-19 발견).
 // 앱도 기호를 걸러내지만, 구버전 앱까지 바로 고쳐지도록 서버 지시문에서 먼저 막는다.
@@ -56,19 +38,6 @@ const CHAT_SYSTEM_INSTRUCTION =
   "당신은 간결하고 친절한 한국어 챗봇입니다. " +
   "답변은 마크다운 없이 일반 문장으로 쓰세요. **, #, * 같은 기호를 쓰지 말고, " +
   "목록이 필요하면 줄 앞에 \"• \"를 붙이세요.";
-
-// Vertex 클라이언트는 인스턴스당 한 번만 만든다 (호출마다 만들 이유가 없음).
-let _ai = null;
-function getAi() {
-  if (!_ai) {
-    _ai = new GoogleGenAI({
-      vertexai: true,
-      project: PROJECT_ID,
-      location: VERTEX_LOCATION,
-    });
-  }
-  return _ai;
-}
 
 // 콜드 스타트 판별용 — 인스턴스의 첫 요청에서만 true.
 let _warm = false;
@@ -116,7 +85,8 @@ async function getLimits() {
 }
 
 /**
- * Gemini AI 프록시 함수 (Vertex AI IAM 방식 — API 키 불필요)
+ * AI 프록시 함수. 이름은 구버전 앱 호환 때문에 callGemini로 유지하지만
+ * 실제 회사·모델은 config/ai가 정한다 (Gemini 전용이 아님).
  * - 인증된 사용자만 호출 가능
  * - Firestore users/{uid}.isPremium 으로 프리미엄 판단
  * - 무료 유저: config/limits 일·월 한도 (Firestore 트랜잭션으로 서버사이드 체크)
@@ -131,6 +101,7 @@ exports.callGemini = onCall(
     timeoutSeconds: 60,
     memory: "256MiB",
     region: LOCATION,
+    secrets: ENABLED_AI_SECRETS,
   },
   async (request, response) => {
     const t0 = Date.now();
@@ -230,54 +201,34 @@ exports.callGemini = onCall(
 
     const tUsage = Date.now();
 
-    // ── 생성 요청 구성 ─────────────────────────────────
-    // 예전 코드는 chats.create()에 systemInstruction을 config 바깥에 넣어
-    // 히스토리가 있는 대화에서는 시스템 지시가 적용되지 않았다.
-    // 히스토리를 contents 앞에 그대로 붙이면 chats API 없이 같은 결과가 나온다.
-    const config = {
-      temperature: mode === "chat" ? 0.7 : 0.9,
-      maxOutputTokens: mode === "chat" ? 2048 : 4096,
-      // thinking 토큰 비용 차단 (기본값이 동적 할당이라 명시적 OFF 필요).
-      // thinking 토큰은 출력 단가로 과금되므로 끄지 않으면 비용이 튄다.
-      thinkingConfig: { thinkingBudget: 0 },
-    };
-    if (mode === "chat") config.systemInstruction = CHAT_SYSTEM_INSTRUCTION;
-
-    const contents = [
-      ...(mode === "chat" && Array.isArray(history) ? history : []),
-      { role: "user", parts: [{ text: prompt }] },
-    ];
-
-    let text = "";
+    // ── 생성 (회사·모델은 config/ai가 정함) ───────────────
+    let gen;
     let tFirst = 0;
     try {
-      if (request.acceptsStreaming) {
+      gen = await ai.generate({
+        db,
+        mode,
+        prompt,
+        history,
+        system: mode === "chat" ? CHAT_SYSTEM_INSTRUCTION : undefined,
         // 스트리밍: 생성되는 조각을 바로 앱으로 흘려보낸다.
         // 전체 생성 시간은 같지만 첫 글자가 훨씬 일찍 뜬다.
-        const stream = await getAi().models.generateContentStream({
-          model: GEMINI_MODEL,
-          contents,
-          config,
-        });
-        for await (const chunk of stream) {
-          const piece = chunk.text;
-          if (!piece) continue;
-          if (!tFirst) tFirst = Date.now();
-          text += piece;
-          await response.sendChunk({ text: piece });
-        }
-      } else {
-        const result = await getAi().models.generateContent({
-          model: GEMINI_MODEL,
-          contents,
-          config,
-        });
-        text = result.text;
-      }
+        onChunk: request.acceptsStreaming
+          ? async (piece) => {
+              if (!tFirst) tFirst = Date.now();
+              await response.sendChunk({ text: piece });
+            }
+          : undefined,
+      });
     } catch (e) {
-      console.error("Gemini error:", e.message, e.stack);
-      throw new HttpsError("internal", `Gemini 오류: ${e.message}`);
+      console.error("AI error:", e.message, e.stack);
+      // 내부 오류 문구(회사명·HTTP 본문)는 로그에만 남기고 앱에는 일반 문구를 준다.
+      throw new HttpsError(
+        "internal",
+        "AI 응답을 받지 못했어요. 잠시 후 다시 시도해주세요."
+      );
     }
+    const text = gen.text;
 
     // 구간별 소요 시간 — Cloud Logging에서 jsonPayload로 집계할 수 있다.
     // usageMs: 한도 확인(트랜잭션), modelMs: 모델 호출 전체,
@@ -286,7 +237,9 @@ exports.callGemini = onCall(
     console.log(
       JSON.stringify({
         event: "callGemini_timing",
-        model: GEMINI_MODEL,
+        provider: gen.provider,
+        model: gen.model,
+        fellBack: gen.fellBack,
         mode,
         cold,
         streaming: request.acceptsStreaming === true,
