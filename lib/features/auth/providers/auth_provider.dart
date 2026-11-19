@@ -16,9 +16,9 @@ final currentUserProvider = Provider<User?>((ref) {
 });
 
 class AuthNotifier extends AsyncNotifier<void> {
-  final _auth = FirebaseAuth.instance;
+  late final _auth = FirebaseAuth.instance;
   // appGoogleSignIn — google_auth_service.dart의 전역 단일 인스턴스 사용
-  final _db = FirebaseFirestore.instance;
+  late final _db = FirebaseFirestore.instance;
 
   @override
   Future<void> build() async {}

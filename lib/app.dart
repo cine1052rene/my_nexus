@@ -5,6 +5,7 @@ import 'core/theme/app_theme.dart';
 import 'core/constants/tab_defs.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/login_screen.dart';
+import 'shared/widgets/brand_background.dart';
 import 'features/hub/screens/hub_screen.dart';
 import 'features/calendar/screens/calendar_screen.dart';
 import 'features/chat/screens/chat_screen.dart';
@@ -70,9 +71,10 @@ class _MyNexusAppState extends ConsumerState<MyNexusApp> {
     final authAsync = ref.watch(authStateProvider);
 
     return authAsync.when(
+      // 시스템 스플래시와 같은 보라 배경·로고로 이어지게 한다 (예전엔 흰 화면 + 스피너)
       loading: () => const MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: Scaffold(body: Center(child: CircularProgressIndicator())),
+        home: BrandSplash(),
       ),
       error: (_, __) => const MaterialApp(
         home: Scaffold(body: Center(child: Text('오류가 발생했어요'))),
