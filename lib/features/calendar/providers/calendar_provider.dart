@@ -40,7 +40,7 @@ final dayEventsProvider = Provider.family<List<ScheduleEvent>, DateTime>((ref, d
   final events = ref.watch(eventsStreamProvider);
   return events.when(
     data: (list) => list.where((e) => e.occursOn(day)).toList()
-      ..sort((a, b) => a.title.compareTo(b.title)),
+      ..sort(ScheduleEvent.compareForDay),
     loading: () => [],
     error: (_, __) => [],
   );

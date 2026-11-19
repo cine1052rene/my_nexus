@@ -50,7 +50,12 @@ const VERTEX_LOCATION = "global";
 // ⚠️ lib/shared/services/ai/gemini_service.dart 의 model 과 같은 값이어야 한다.
 const GEMINI_MODEL = "gemini-3.1-flash-lite";
 
-const CHAT_SYSTEM_INSTRUCTION = "당신은 간결하고 친절한 한국어 챗봇입니다.";
+// 앱 말풍선은 일반 Text라 마크다운 기호(**, #, *)가 그대로 보인다 (2026-11-19 발견).
+// 앱도 기호를 걸러내지만, 구버전 앱까지 바로 고쳐지도록 서버 지시문에서 먼저 막는다.
+const CHAT_SYSTEM_INSTRUCTION =
+  "당신은 간결하고 친절한 한국어 챗봇입니다. " +
+  "답변은 마크다운 없이 일반 문장으로 쓰세요. **, #, * 같은 기호를 쓰지 말고, " +
+  "목록이 필요하면 줄 앞에 \"• \"를 붙이세요.";
 
 // Vertex 클라이언트는 인스턴스당 한 번만 만든다 (호출마다 만들 이유가 없음).
 let _ai = null;

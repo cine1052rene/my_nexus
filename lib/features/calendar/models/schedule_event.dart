@@ -65,6 +65,20 @@ class ScheduleEvent {
     'endTime': endTime != null ? Timestamp.fromDate(endTime!) : null,
   };
 
+  /// 하루 일정 목록 정렬: 종일 일정 먼저, 그다음 시작 시간이 이른 순, 같으면 제목순.
+  /// (예전엔 제목 가나다순이라 12시 약속이 10시 회의보다 위에 떴다 — 2026-11-19)
+  static int compareForDay(ScheduleEvent a, ScheduleEvent b) {
+    final aAll = a.allDay || a.startTime == null;
+    final bAll = b.allDay || b.startTime == null;
+    if (aAll != bAll) return aAll ? -1 : 1;
+    if (!aAll) {
+      final am = a.startTime!.hour * 60 + a.startTime!.minute;
+      final bm = b.startTime!.hour * 60 + b.startTime!.minute;
+      if (am != bm) return am.compareTo(bm);
+    }
+    return a.title.compareTo(b.title);
+  }
+
   /// 반복 일정이 특정 날짜에 해당하는지 확인
   bool occursOn(DateTime checkDate) {
     final d = DateTime(date.year, date.month, date.day);

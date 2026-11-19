@@ -4,6 +4,7 @@ import '../providers/chat_provider.dart';
 import '../models/chat_message.dart';
 import '../widgets/chat_link_list.dart';
 import '../../settings/providers/settings_provider.dart';
+import '../../../shared/utils/plain_text.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -314,7 +315,8 @@ class _MessageBubble extends StatelessWidget {
                     child: _TypingIndicator(),
                   )
                 : Text(
-                    msg.text,
+                    // AI 답변만 마크다운 기호를 걷어낸다 (내가 쓴 글은 그대로)
+                    isUser ? msg.text : stripMarkdown(msg.text),
                     style: TextStyle(
                       color: isUser
                           ? Colors.white

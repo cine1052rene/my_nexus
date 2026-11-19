@@ -15,7 +15,10 @@ class GeminiService {
   /// → functions/index.js 의 GEMINI_MODEL 과 항상 같은 값이어야 한다.
   static const model = 'gemini-3.1-flash-lite';
 
-  static const _chatSystemInstruction = '당신은 간결하고 친절한 한국어 챗봇입니다.';
+  static const _chatSystemInstruction =
+      '당신은 간결하고 친절한 한국어 챗봇입니다. '
+      '답변은 마크다운 없이 일반 문장으로 쓰세요. **, #, * 같은 기호를 쓰지 말고, '
+      '목록이 필요하면 줄 앞에 "• "를 붙이세요.';
   static const _directUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent';
 

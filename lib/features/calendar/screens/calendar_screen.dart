@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/calendar_provider.dart';
 import '../widgets/event_tile.dart';
+import '../models/schedule_event.dart';
 import '../data/korean_holidays.dart';
 import '../../../core/utils/lunar_converter.dart';
 import '../../../shared/services/calendar/google_calendar_service.dart';
@@ -25,11 +26,13 @@ class CalendarScreen extends ConsumerWidget {
     final googleAsync = ref.watch(googleCalendarEventsProvider(monthKey));
     final googleEvents = googleAsync.when(
       data: (list) => list.where((e) => e.occursOn(selectedDay)).toList(),
-      loading: () => <dynamic>[],
-      error: (_, __) => <dynamic>[],
+      loading: () => <ScheduleEvent>[],
+      error: (_, __) => <ScheduleEvent>[],
     );
 
-    final allEvents = [...firestoreEvents, ...googleEvents];
+    // 내 일정 + 구글 캘린더 일정을 한 줄로 시간순 정렬
+    final allEvents = [...firestoreEvents, ...googleEvents]
+      ..sort(ScheduleEvent.compareForDay);
 
     final lunarDate = LunarConverter.toSolar(selectedDay);
     final holiday = KoreanHolidays.getHoliday(selectedDay);
