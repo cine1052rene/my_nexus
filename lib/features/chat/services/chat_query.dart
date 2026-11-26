@@ -6,6 +6,9 @@
 library;
 
 import '../../hub/models/link_item.dart';
+import 'chat_date_range.dart';
+
+export 'chat_date_range.dart' show DateRange;
 
 /// 질문이 요구하는 동작 유형
 enum QueryAction {
@@ -23,6 +26,9 @@ enum QueryAction {
 
   /// 요약·설명 요청 — 로컬로 링크를 추린 뒤 그 일부만 LLM에 전달
   summarize,
+
+  /// 관심 분포 — 기간 내 주제·출처·키워드 집계 (기기 처리)
+  interests,
 
   /// 로컬 처리 불가 → 일반 LLM 대화로 폴백
   unknown,
@@ -44,12 +50,22 @@ class ChatQuery {
   /// 사용자가 "5개만" 처럼 개수를 지정한 경우
   final int? limit;
 
+  /// 저장일 기간 — "지난주", "11월 3일부터 10일까지"
+  final DateRange? range;
+
+  /// 플랫폼을 **출처가 아니라 주제**로 말한 경우의 플랫폼 id.
+  /// "유튜브 관련 링크 정리해줘" → 유튜브에서 저장한 링크가 아니라
+  /// 유튜브 운영·제작에 관한 링크. ("유튜브에서 저장한"이면 [categoryId])
+  final String? subjectId;
+
   const ChatQuery({
     required this.action,
     this.categoryId,
     this.topicId,
     this.keywords = const [],
     this.limit,
+    this.range,
+    this.subjectId,
   });
 
   static const unknown = ChatQuery(action: QueryAction.unknown);
@@ -63,12 +79,16 @@ class ChatQuery {
 
   /// 카테고리·주제·키워드 중 하나라도 조건이 걸려 있는가
   bool get hasFilter =>
-      categoryId != null || topicId != null || keywords.isNotEmpty;
+      categoryId != null ||
+      topicId != null ||
+      keywords.isNotEmpty ||
+      range != null ||
+      subjectId != null;
 
   @override
   String toString() =>
       'ChatQuery(action: $action, category: $categoryId, topic: $topicId, '
-      'keywords: $keywords, limit: $limit)';
+      'subject: $subjectId, keywords: $keywords, limit: $limit, range: $range)';
 }
 
 /// 로컬 쿼리 실행 결과

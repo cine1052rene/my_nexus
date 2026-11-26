@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/chat_provider.dart';
 import '../models/chat_message.dart';
 import '../widgets/chat_link_list.dart';
+import '../widgets/chat_suggestions.dart';
 import '../../settings/providers/settings_provider.dart';
 import '../../../shared/utils/plain_text.dart';
 
@@ -15,12 +16,14 @@ class ChatScreen extends ConsumerStatefulWidget {
 
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _controller = TextEditingController();
+  final _focus = FocusNode();
   final _scrollCtrl = ScrollController();
   bool _hubLoading = false;
 
   @override
   void dispose() {
     _controller.dispose();
+    _focus.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -149,7 +152,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           // ── 메시지 목록 ─────────────────────────────────────
           Expanded(
             child: messages.isEmpty
-                ? const _EmptyState()
+                ? ChatEmptyState(
+                    onPick: (s) => fillChatInput(_controller, _focus, s),
+                  )
                 : ListView.builder(
                     controller: _scrollCtrl,
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -161,6 +166,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           // ── 입력창 ──────────────────────────────────────────
           _InputBar(
             controller: _controller,
+            focusNode: _focus,
             isLoading: isLoading,
             onSend: _send,
           ),
@@ -190,38 +196,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
     );
     if (ok == true) ref.read(chatProvider.notifier).reset();
-  }
-}
-
-// ── 빈 상태 ─────────────────────────────────────────────────
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text('🤖', style: TextStyle(fontSize: 56)),
-          const SizedBox(height: 16),
-          const Text(
-            '무엇이든 물어보세요',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '저장한 링크 조회는 기기에서 바로 처리돼요',
-            style: TextStyle(fontSize: 13, color: Colors.grey[500]),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '"유튜브 링크 보여줘" · "인스타 몇 개야?"',
-            style: TextStyle(fontSize: 12, color: Colors.grey[400]),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -394,11 +368,13 @@ class _TypingIndicatorState extends State<_TypingIndicator>
 // ── 입력창 ───────────────────────────────────────────────────
 class _InputBar extends StatelessWidget {
   final TextEditingController controller;
+  final FocusNode focusNode;
   final bool isLoading;
   final VoidCallback onSend;
 
   const _InputBar({
     required this.controller,
+    required this.focusNode,
     required this.isLoading,
     required this.onSend,
   });
@@ -421,6 +397,7 @@ class _InputBar extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
+              focusNode: focusNode,
               minLines: 1,
               maxLines: 4,
               textInputAction: TextInputAction.send,

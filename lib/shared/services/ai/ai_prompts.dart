@@ -86,13 +86,17 @@ $truncated
   static String hubSummarize({
     required String question,
     required String linksText,
+    String? subject,
   }) =>
       '''
 아래는 사용자가 저장해 둔 링크 목록입니다.
 
 $linksText
 
-위 목록만 근거로 사용자의 요청에 답해주세요.
+위 목록만 근거로 사용자의 요청에 답해주세요.${subject == null ? '' : '''
+
+- 요청의 '$subject'은(는) 링크를 저장한 곳이 아니라 **내용의 주제**입니다.
+  $subject 채널·계정의 운영, 콘텐츠 제작·편집, 관리·성장에 관한 내용으로 묶어서 정리해주세요.'''}
 - 목록에 없는 링크나 내용을 지어내지 마세요.
 - 정보가 부족하면 부족하다고 솔직히 말해주세요.
 - 한국어로 간결하게 작성해주세요.

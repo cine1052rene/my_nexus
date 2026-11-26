@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/chat_message.dart';
+import '../../../core/constants/app_constants.dart';
 import '../services/chat_query_parser.dart';
 import '../services/chat_query_executor.dart';
 import '../../hub/models/link_item.dart';
@@ -210,6 +211,9 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           prompt: AiPrompts.hubSummarize(
             question: text,
             linksText: _formatLinks(result.links),
+            subject: query.subjectId == null
+                ? null
+                : HubCategory.fromId(query.subjectId!).label,
           ),
           history: const [],
           links: result.links,
@@ -252,6 +256,7 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
           final isInbox = l.category == 'memo' || l.category == 'capture';
           final parts = <String>[
             '[${l.category}] ${l.title}',
+            '  저장일: ${l.createdAt.year}-${l.createdAt.month}-${l.createdAt.day}',
             // 메모·캡처는 URL이 없거나 Storage 주소라 AI에 쓸모가 없다 — 본문을 대신 준다
             if (!isInbox) '  URL: ${l.url}',
             if (isInbox && (l.description ?? '').isNotEmpty)
@@ -306,10 +311,10 @@ class ChatNotifier extends Notifier<List<ChatMessage>> {
         text:
             '📚 DB허브 ${links.length}개 링크 연동 완료!\n($catSummary)\n\n'
             '이런 걸 물어보세요:\n'
-            '• "유튜브 링크 목록 보여줘"\n'
-            '• "최근 저장한 링크 알려줘"\n'
-            '• "인스타 링크 몇 개야?"\n'
-            '• "요리 관련 링크 찾아줘"',
+            '• "이번 주 관심 분포 정리해줘"\n'
+            '• "유튜브 관련 링크 정리해줘" (유튜브 운영·제작 이야기)\n'
+            '• "지난주에 유튜브에서 저장한 링크 보여줘"\n'
+            '• "11월 3일부터 10일까지 저장한 링크"',
         role: MessageRole.bot,
         timestamp: DateTime.now(),
         isLocal: true,

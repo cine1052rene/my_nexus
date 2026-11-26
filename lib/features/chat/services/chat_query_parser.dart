@@ -1,5 +1,7 @@
 import '../../../core/constants/app_constants.dart';
+import 'chat_date_range.dart';
 import 'chat_query.dart';
+import 'chat_query_vocab.dart';
 
 /// 자연어 질문 → [ChatQuery] 변환기.
 ///
@@ -210,23 +212,83 @@ class ChatQueryParser {
   ];
 
   /// 질문을 파싱한다. 로컬 처리가 부적절하면 [ChatQuery.unknown] 반환.
-  static ChatQuery parse(String raw) {
+  /// [now]는 "지난주" 같은 날짜 해석 기준(테스트용).
+  static ChatQuery parse(String raw, {DateTime? now}) {
     final text = raw.trim().toLowerCase();
     if (text.isEmpty) return ChatQuery.unknown;
 
-    final categoryId = _detectCategory(text);
+    // 날짜 표현은 기간으로 떼어내고, 나머지 문장(body)으로 키워드를 뽑는다
+    final dateMatch = ChatDateParser.parse(text, now: now);
+    final range = dateMatch?.range;
+    final body = dateMatch?.rest ?? text;
+
+    final platform = _findCategory(body);
     final hasLinkNoun = _linkNouns.any((n) => text.contains(n));
+    final wantsInterests = _containsAny(text, kInterestWords);
 
     // ── 게이트: 링크 문맥이 확인되지 않으면 LLM에게 넘긴다 ──
     // "요리 잘하는 법 알려줘" 같은 일반 질문을 가로채지 않기 위함.
-    if (categoryId == null && !hasLinkNoun) return ChatQuery.unknown;
+    if (platform == null && !hasLinkNoun && !wantsInterests) {
+      return ChatQuery.unknown;
+    }
 
-    final topicId = _detectTopic(text);
-    final limit = _detectLimit(text);
-    final keywords = _extractKeywords(text, categoryId, topicId);
-    final action = _detectAction(text);
+    // ── 관심 분포 리포트 (기간 없으면 최근 7일) ──
+    if (wantsInterests) {
+      return ChatQuery(
+        action: QueryAction.interests,
+        categoryId: platform?.id,
+        range: range,
+      );
+    }
+
+    var action = _detectAction(text);
+    // "최근 7일"처럼 기간이 있으면 5개만 보여주는 '최근'이 아니라 기간 내 전체 목록
+    if (range != null && action == QueryAction.recent) {
+      action = QueryAction.list;
+    }
+
+    // ── 플랫폼 이름 = 저장 출처인가, 내용의 주제인가 ──
+    // "유튜브 관련 링크 정리해줘" → 유튜브 운영·제작에 관한 링크(주제)
+    // "지난주 유튜브에서 저장한 링크" → 유튜브 카테고리(출처)
+    String? categoryId;
+    String? subjectId;
+    if (platform != null) {
+      final after = body.substring(platform.end);
+      final subjectAfter = kSubjectWords.any(
+        (w) => after.trimLeft().startsWith(w),
+      );
+      final canBeSubject = platform.id != 'etc';
+      if (canBeSubject && subjectAfter) {
+        subjectId = platform.id;
+      } else if (kSourceAfter.hasMatch(after) || range != null) {
+        categoryId = platform.id;
+      } else if (canBeSubject &&
+          (action == QueryAction.summarize || action == QueryAction.search)) {
+        subjectId = platform.id;
+      } else {
+        categoryId = platform.id;
+      }
+    }
+
+    // 주제 모드에서는 '운영·관리' 같은 표지어를 검색 조건으로 쓰지 않는다
+    var work = body;
+    if (subjectId != null) {
+      final sorted = [...kSubjectWords]
+        ..sort((a, b) => b.length.compareTo(a.length));
+      for (final w in sorted) {
+        work = work.replaceAll(w, ' ');
+      }
+    }
+
+    final topicId = _detectTopic(work);
+    final limit = _detectLimit(work);
+    final keywords = _extractKeywords(work, platform?.id, topicId);
     final hasFilter =
-        categoryId != null || topicId != null || keywords.isNotEmpty;
+        categoryId != null ||
+        subjectId != null ||
+        topicId != null ||
+        keywords.isNotEmpty ||
+        range != null;
 
     // ── 2차 게이트: 조건 없는 약한 매칭은 LLM에게 넘긴다 ──
     // "링크 저장하는 법 알려줘"의 '알려'가 목록 요청으로 오인되면 안 된다.
@@ -244,6 +306,8 @@ class ChatQueryParser {
       topicId: topicId,
       keywords: keywords,
       limit: limit,
+      range: range,
+      subjectId: subjectId,
     );
   }
 
@@ -264,19 +328,29 @@ class ChatQueryParser {
   // ── 카테고리 감지 ──────────────────────────────────────────
   /// '전체/모든'이 붙어도 특정 카테고리가 언급됐으면 그쪽이 우선이고,
   /// 아니면 null(= 전체)이 되므로 별도 분기가 필요 없다.
-  static String? _detectCategory(String text) => _matchCategory(text);
-
-  static String? _matchCategory(String text) {
+  static ({String id, int end})? _findCategory(String text) {
     // 긴 별칭부터 검사해야 '인스타그램'이 '인스타'로 잘리지 않음
-    final entries = _categoryAliases.entries.toList();
-    for (final e in entries) {
+    for (final e in _categoryAliases.entries) {
       final aliases = [...e.value]
         ..sort((a, b) => b.length.compareTo(a.length));
       for (final alias in aliases) {
-        if (_matchToken(text, alias)) return e.key;
+        final end = _tokenEnd(text, alias);
+        if (end != null) return (id: e.key, end: end);
       }
     }
     return null;
+  }
+
+  /// [_matchToken]과 같은 규칙으로 찾고, 찾은 위치의 끝 인덱스를 돌려준다
+  static int? _tokenEnd(String text, String token) {
+    if (!_matchToken(text, token)) return null;
+    final isShortAscii =
+        token.length <= 3 && RegExp(r'^[a-z0-9 ]+$').hasMatch(token);
+    if (!isShortAscii) return text.indexOf(token) + token.length;
+    final m = RegExp(
+      '(^|[^a-z0-9])${RegExp.escape(token)}(?=[^a-z0-9]|\$)',
+    ).firstMatch(text)!;
+    return m.end;
   }
 
   // ── 주제 감지 (YoutubeKeyword 패턴 재사용) ─────────────────
@@ -360,6 +434,8 @@ class ChatQueryParser {
         .map(_stripParticle)
         .map(_stripVerbEnding)
         .where((t) => t.length >= 2)
+        // "유튜브에서 수집한" → 별칭을 지우면 '에서', '수집'이 남는다 — 조건이 아님
+        .where((t) => !_particles.contains(t) && !kSaveVerbs.contains(t))
         .toSet()
         .toList();
 

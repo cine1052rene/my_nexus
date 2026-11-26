@@ -1,7 +1,7 @@
 name: my_nexus
 description: "나만의 비서 앱 — 링크허브 + 스케줄 달력"
 publish_to: 'none'
-version: 1.0.0+5
+version: 1.0.0+6
 
 environment:
   sdk: ^3.12.1
