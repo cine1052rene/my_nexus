@@ -22,6 +22,8 @@ Future<void> openHubItem(BuildContext context, LinkItem item) async {
     _ => 'link',
   };
   AnalyticsService.itemOpened(type: type, fromSearch: fromSearch);
+  // 열어 본 항목은 '봤음'으로 (안 봄·옛 항목만, 기다리지 않음)
+  ProviderScope.containerOf(context).read(hubNotifierProvider.notifier).markSeen(item);
 
   switch (type) {
     case 'capture':

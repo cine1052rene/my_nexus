@@ -34,6 +34,14 @@ class AnalyticsService {
         if (url != null) 'format': linkFormat(url),
       });
 
+  /// 저장 직후 '왜 저장' 칩을 골랐는지 (입력률 = 이 수 / item_saved)
+  static Future<void> intentPicked(String intent) =>
+      _log('intent_picked', {'intent': intent});
+
+  /// 같은 링크를 또 저장하려다 막힌 횟수 — "잊고 또 받아오기"의 실측치
+  static Future<void> duplicateBlocked({required String via}) =>
+      _log('duplicate_blocked', {'via': via});
+
   /// 링크 형태만 판별한다 — 짧은 영상 / 일반 영상 / 글·게시물
   static String linkFormat(String url) {
     final u = url.toLowerCase();

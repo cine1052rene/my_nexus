@@ -28,7 +28,11 @@ String detectLinkCategory(String url) {
 class LinkMetadata {
   final String? title;
   final String? thumbnailUrl;
-  const LinkMetadata({this.title, this.thumbnailUrl});
+
+  /// 페이지 설명(og:description). 스레드·인스타·페북은 본문 상당 부분이 들어 있다.
+  /// 1.1.0 전에는 버리고 있어서 AI 정리 재료가 제목뿐이었다 (11-27 집계: 728개 중 1개).
+  final String? description;
+  const LinkMetadata({this.title, this.thumbnailUrl, this.description});
 
   static const empty = LinkMetadata();
   bool get isEmpty => title == null && thumbnailUrl == null;
@@ -110,7 +114,7 @@ class LinkMetadataService {
 
   // ── 틱톡 ──────────────────────────────────────────────────
   static Future<LinkMetadata> _tiktok(String url) async {
-    final full = await _resolveTikTok(url);
+    final full = await resolveTikTok(url);
     // 틱톡 oEmbed는 간헐적으로 시간초과·429가 나서 한 번 재시도한다.
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
@@ -137,7 +141,7 @@ class LinkMetadataService {
 
   /// vt.tiktok.com/xxx · vm.tiktok.com/xxx · tiktok.com/t/xxx 단축링크를
   /// 원래 영상 주소로 푼다 (oEmbed가 단축링크를 거부하기 때문).
-  static Future<String> _resolveTikTok(String url) async {
+  static Future<String> resolveTikTok(String url) async {
     final uri = Uri.parse(url);
     final isShort = uri.host.startsWith('vt.') ||
         uri.host.startsWith('vm.') ||
@@ -169,6 +173,7 @@ class LinkMetadataService {
     return LinkMetadata(
       title: facebookTitle ? LinkMetadataService.facebookTitle(og.title) : og.title,
       thumbnailUrl: og.thumbnailUrl,
+      description: og.description,
     );
   }
 
@@ -202,6 +207,7 @@ class LinkMetadataService {
       title: _clean(d['title'] as String?),
       // data: URL(base64 로고)은 썸네일이 아니다
       thumbnailUrl: (img != null && !img.startsWith('data:')) ? img : null,
+      description: _desc(d['description'] as String?),
     );
   }
 
@@ -216,6 +222,7 @@ class LinkMetadataService {
     return LinkMetadata(
       title: og.title ?? _clean(pageTitle),
       thumbnailUrl: og.thumbnailUrl,
+      description: og.description,
     );
   }
 
@@ -241,7 +248,19 @@ class LinkMetadataService {
     return LinkMetadata(
       title: _clean(meta('og:title')),
       thumbnailUrl: img == null || img.isEmpty ? null : decodeHtmlEntities(img),
+      description: _desc(meta('og:description') ?? meta('description')),
     );
+  }
+
+  /// 설명은 최대 1000자. 로그인 유도 문구만 있는 경우는 버린다.
+  static String? _desc(String? s) {
+    if (s == null) return null;
+    final t = decodeHtmlEntities(s).replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (t.length < 10) return null;
+    if (RegExp(r'^(log in|sign up|로그인)', caseSensitive: false).hasMatch(t)) {
+      return null;
+    }
+    return t.length > 1000 ? t.substring(0, 1000) : t;
   }
 
   static String? _clean(String? s) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/link_item.dart';
 import 'hub_item_opener.dart';
+import 'link_status_widgets.dart';
 import '../../../core/constants/app_constants.dart';
 
 /// 뷰모드에 따라 List / Grid / Compact 카드를 렌더링
@@ -100,6 +101,7 @@ class _ListCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          LinkStatusBadge(item: item),
                         ],
                       ),
                     ),
@@ -328,6 +330,7 @@ class _CompactRow extends StatelessWidget {
               Text((HubCategory.inboxIds.contains(item.category) ? HubCategory.fromId(item.category).label : _domain(item.url)),
                   style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
+              LinkStatusBadge(item: item),
             ])),
             _Menu(onEdit: onEdit, onDelete: onDelete, onCurate: onCurate, iconSize: 16),
           ]),

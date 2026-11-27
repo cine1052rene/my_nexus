@@ -118,6 +118,27 @@ class FirestoreService {
 
   /// 썸네일 주소만 바꾼다 (Storage 사본으로 교체할 때).
   /// 전체 문서를 다시 쓰면 그 사이 사용자가 고친 제목·메모를 덮어쓸 수 있다.
+  /// 같은 콘텐츠를 이미 저장했는지 — 중복 판별 키로 먼저, 키가 없는 옛 항목은
+  /// 원래 주소로 한 번 더 찾는다 (백필 전 데이터 대비).
+  Future<LinkItem?> findDuplicate({
+    required String urlKey,
+    required String url,
+  }) async {
+    if (currentUid == null) return null;
+    final byKey =
+        await _linksCol.where('urlKey', isEqualTo: urlKey).limit(1).get();
+    _reads++;
+    if (byKey.docs.isNotEmpty) return LinkItem.fromFirestore(byKey.docs.first);
+    return findByUrl(url);
+  }
+
+  /// 일부 필드만 갱신 (상태·저장 이유·설명 등). 전체 덮어쓰기 대신 쓰면
+  /// 다른 기기에서 동시에 고친 필드를 지우지 않는다.
+  Future<void> updateFields(String id, Map<String, Object?> fields) async {
+    await _linksCol.doc(id).update(fields);
+    _writes++;
+  }
+
   Future<void> updateThumbnail(String id, String thumbnailUrl) async {
     await _linksCol.doc(id).update({'thumbnailUrl': thumbnailUrl});
     _writes++;

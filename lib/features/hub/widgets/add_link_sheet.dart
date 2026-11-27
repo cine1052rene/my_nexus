@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/link_item.dart';
 import '../providers/hub_provider.dart';
+import 'link_status_widgets.dart';
+import 'save_feedback.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../shared/utils/tag_utils.dart';
 import '../../../shared/utils/youtube_utils.dart';
@@ -29,6 +31,9 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
   String? _ytKeywordId;      // 선택된 YouTube 키워드 ID
   bool    _loading      = false;
   String? _fetchedThumb;
+  String? _fetchedDesc;      // og:description (1.1.0부터 저장)
+  String? _status;           // 편집 시 상태
+  String? _intent;           // 편집 시 저장 이유
 
   bool get _isEdit => widget.editItem != null;
 
@@ -44,6 +49,8 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
       _tagsCtrl.text    = e.tags.join(', ');
       _category         = e.category;
       _fetchedThumb     = e.thumbnailUrl;
+      _status           = e.status;
+      _intent           = e.intent;
       // 기존 태그에서 YouTube 키워드 복원
       if (_category == 'youtube') {
         for (final kw in YoutubeKeyword.all_list) {
@@ -81,6 +88,7 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
     if (title != null && _titleCtrl.text.isEmpty) _titleCtrl.text = title;
     if (category == 'youtube' && title != null) _applyYoutubeKeyword(title);
     if (meta.thumbnailUrl != null) _fetchedThumb = meta.thumbnailUrl;
+    if (meta.description != null) _fetchedDesc = meta.description;
 
     if (_titleCtrl.text.isEmpty) {
       final vid = extractYoutubeId(url);
@@ -131,14 +139,22 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
         summary: _summaryCtrl.text.isEmpty ? null : _summaryCtrl.text,
         notes: _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
         tags: tags,
+        description: _fetchedDesc,
+        status: _status,
+        intent: _intent,
       ));
     } else {
+      // 같은 콘텐츠를 이미 저장했으면 먼저 알려준다
+      final dup = await notifier.findDuplicate(_urlCtrl.text.trim());
+      if (!mounted) return;
+      if (dup != null && !await _confirmDuplicate(dup)) return;
       AnalyticsService.itemSaved(
           type: 'link', via: 'manual', category: _category,
           url: _urlCtrl.text.trim());
       err = await notifier.addLink(
         url: _urlCtrl.text.trim(), title: _titleCtrl.text.trim(),
         category: _category, thumbnailUrl: _fetchedThumb,
+        description: _fetchedDesc,
         summary: _summaryCtrl.text.isEmpty ? null : _summaryCtrl.text,
         notes: _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
         tags: tags,
@@ -151,6 +167,27 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
     } else {
       Navigator.pop(context);
     }
+  }
+
+  /// 이미 저장한 링크면 그래도 저장할지 묻는다 (true = 저장 진행)
+  Future<bool> _confirmDuplicate(LinkItem dup) async {
+    AnalyticsService.duplicateBlocked(via: 'manual');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('이미 저장한 링크예요'),
+        content: Text('${SaveFeedback.ago(dup.createdAt)} 저장\n${dup.title}'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: const Text('취소')),
+          TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, true),
+              child: const Text('그래도 저장')),
+        ],
+      ),
+    );
+    return ok == true;
   }
 
   @override
@@ -213,6 +250,13 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
                 ClearableTextField(
                     controller: _titleCtrl, labelText: '📌 제목 *'),
                 const SizedBox(height: 12),
+                if (_isEdit)
+                  LinkStatusPicker(
+                    status: _status,
+                    intent: _intent,
+                    onStatus: (s) => setState(() => _status = s),
+                    onIntent: (i) => setState(() => _intent = i),
+                  ),
 
                 // 카테고리
                 const Text('카테고리',

@@ -14,6 +14,15 @@ class LinkItem {
   final DateTime createdAt;
   final DateTime? updatedAt;
 
+  /// 중복 판별 키 ([canonicalLinkKey]). 1.1.0 이전 항목은 백필로 채움
+  final String? urlKey;
+
+  /// 소화 상태 — [LinkStatus]. null = 1.1.0 이전에 저장된 항목(legacy)
+  final String? status;
+
+  /// 저장한 이유 — [LinkIntent]. null = 고르지 않음
+  final String? intent;
+
   const LinkItem({
     required this.id,
     required this.url,
@@ -26,6 +35,9 @@ class LinkItem {
     this.notes,
     required this.createdAt,
     this.updatedAt,
+    this.urlKey,
+    this.status,
+    this.intent,
   });
 
   // YouTube 여부 판단
@@ -61,6 +73,9 @@ class LinkItem {
       notes: d['notes'],
       createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (d['updatedAt'] as Timestamp?)?.toDate(),
+      urlKey: d['urlKey'] as String?,
+      status: d['status'] as String?,
+      intent: d['intent'] as String?,
     );
   }
 
@@ -75,6 +90,9 @@ class LinkItem {
     'notes': notes,
     'createdAt': Timestamp.fromDate(createdAt),
     'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
+    if (urlKey != null) 'urlKey': urlKey,
+    if (status != null) 'status': status,
+    if (intent != null) 'intent': intent,
   };
 
   LinkItem copyWith({
@@ -85,6 +103,8 @@ class LinkItem {
     List<String>? tags,
     String? summary,
     String? notes,
+    String? status,
+    String? intent,
   }) => LinkItem(
     id: id,
     url: url,
@@ -97,5 +117,35 @@ class LinkItem {
     notes: notes ?? this.notes,
     createdAt: createdAt,
     updatedAt: DateTime.now(),
+    urlKey: urlKey,
+    status: status ?? this.status,
+    intent: intent ?? this.intent,
   );
+}
+
+/// 링크 소화 상태 (1.1.0). 저장 → 안 봄 → 봤음 → 적용함 / 버림
+class LinkStatus {
+  LinkStatus._();
+  static const unseen = 'unseen';
+  static const seen = 'seen';
+  static const applied = 'applied';
+  static const dropped = 'dropped';
+
+  static const labels = {
+    unseen: '안 봄',
+    seen: '봤음',
+    applied: '적용함',
+    dropped: '버림',
+  };
+}
+
+/// 저장한 이유 (1.1.0) — 나중에 묶기·정리의 단서가 된다
+class LinkIntent {
+  LinkIntent._();
+  static const labels = {
+    'ref': '📌 참고',
+    'try': '🛠️ 해볼 것',
+    'buy': '🛒 살 것',
+    'study': '📚 공부',
+  };
 }

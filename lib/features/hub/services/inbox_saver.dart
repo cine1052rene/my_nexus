@@ -26,6 +26,7 @@ class InboxSaver {
       description: text,
       tags: const [],
       createdAt: DateTime.now(),
+      status: LinkStatus.seen, // 직접 쓴 메모는 이미 본 것
     );
     final err = await notifier.addItem(item);
     if (err != null) return null;
@@ -48,6 +49,7 @@ class InboxSaver {
       description: clampOcrText(result.ocrText),
       tags: const [],
       createdAt: now,
+      status: LinkStatus.unseen, // 캡처는 나중에 다시 볼 것
     );
     final err = await notifier.addItem(item);
     if (err != null) {

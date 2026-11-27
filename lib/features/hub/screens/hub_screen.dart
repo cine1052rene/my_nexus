@@ -4,6 +4,7 @@ import '../models/link_item.dart';
 import '../providers/hub_provider.dart';
 import '../widgets/link_card.dart';
 import '../widgets/add_link_sheet.dart';
+import '../widgets/save_feedback.dart';
 import '../widgets/curation_sheet.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../shared/services/share_intent_service.dart';
@@ -122,13 +123,14 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     }
 
     // ① 즉시 Firestore 저장 (기본 제목으로)
-    final saved = await ref.read(hubNotifierProvider.notifier).quickAddLink(
+    final notifier = ref.read(hubNotifierProvider.notifier);
+    final outcome = await notifier.quickAddLink(
       url: url, title: title, category: category, thumbnailUrl: thumbnail,
     );
 
     if (!mounted) return;
 
-    if (saved == null) {
+    if (outcome == null) {
       messenger.showSnackBar(const SnackBar(
         content: Text('저장 실패 😢'), backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
@@ -136,17 +138,24 @@ class _HubScreenState extends ConsumerState<HubScreen> {
       return;
     }
 
+    final saved = outcome.item;
+    if (outcome.duplicate) {
+      // 같은 콘텐츠가 이미 있다 — 새로 만들지 않고 언제 저장했는지 알려준다
+      AnalyticsService.duplicateBlocked(via: 'share');
+      SaveFeedback.duplicate(messenger,
+          existing: saved, onView: () => _openEditSheet(saved));
+      return;
+    }
+
     AnalyticsService.itemSaved(
         type: 'link', via: 'share', category: category, url: url);
 
-    // ② 저장 완료 즉시 알림
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(
-      content: Text('${_categoryEmoji(category)} 저장됨: $title'),
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 2),
-      action: SnackBarAction(label: '편집', onPressed: () => _openEditSheet(saved)),
-    ));
+    // ② 저장 완료 즉시 알림 + 저장 이유 칩
+    SaveFeedback.saved(messenger,
+        emoji: _categoryEmoji(category),
+        item: saved,
+        onEdit: () => _openEditSheet(saved),
+        onIntent: (i) => notifier.setFields(saved.id, {'intent': i}));
 
     // ③ 백그라운드에서 메타데이터 가져와 조용히 업데이트
     _updateMetadataInBackground(saved, url, category);
@@ -166,17 +175,19 @@ class _HubScreenState extends ConsumerState<HubScreen> {
         if (kw != null && !newTags.contains(kw.label)) newTags.add(kw.label);
       }
 
-      // 변경된 경우만 업데이트
-      final changed = (newTitle != null && newTitle != saved.title) ||
-          newThumb != saved.thumbnailUrl ||
-          newTags.length != saved.tags.length;
-      if (!changed) return;
-
-      await ref.read(hubNotifierProvider.notifier).updateLink(saved.copyWith(
-        title:        newTitle ?? saved.title,
-        thumbnailUrl: newThumb,
-        tags:         newTags,
-      ));
+      // 변경된 필드만 부분 갱신 — 전체 덮어쓰기는 그사이 고른 저장 이유·상태를 지운다
+      final fields = <String, Object?>{
+        if (newTitle != null && newTitle != saved.title) 'title': newTitle,
+        if (newThumb != saved.thumbnailUrl) 'thumbnailUrl': newThumb,
+        if (newTags.length != saved.tags.length) 'tags': newTags,
+        if (meta.description != null) 'description': meta.description,
+      };
+      if (fields.isEmpty) return;
+      final notifier = ref.read(hubNotifierProvider.notifier);
+      await notifier.setFields(saved.id, fields);
+      if (fields.containsKey('thumbnailUrl')) {
+        notifier.persistThumbnail(saved.copyWith(thumbnailUrl: newThumb));
+      }
     } catch (_) {
       // 메타데이터 업데이트 실패 → 기본 제목으로 이미 저장됐으니 무시
     }
@@ -295,6 +306,18 @@ class _HubScreenState extends ConsumerState<HubScreen> {
             // 기본: 돋보기 + 뷰모드
             : [
                 IconButton(
+                  icon: Icon(ref.watch(hubUnseenOnlyProvider)
+                      ? Icons.mark_email_unread
+                      : Icons.mark_email_unread_outlined),
+                  color: ref.watch(hubUnseenOnlyProvider)
+                      ? const Color(0xFF6C63FF)
+                      : null,
+                  tooltip: '안 본 것만',
+                  onPressed: () => ref
+                      .read(hubUnseenOnlyProvider.notifier)
+                      .update((v) => !v),
+                ),
+                IconButton(
                   icon: const Icon(Icons.search),
                   tooltip: '검색',
                   onPressed: _openSearch,
@@ -358,7 +381,10 @@ class _HubScreenState extends ConsumerState<HubScreen> {
     );
   }
 
-  Widget _emptyView() => Center(
+  Widget _emptyView() => ref.watch(hubUnseenOnlyProvider)
+      ? const Center(child: Text('안 본 링크가 없어요 👏',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)))
+      : Center(
     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       const Text('🔗', style: TextStyle(fontSize: 60)),
       const SizedBox(height: 16),
