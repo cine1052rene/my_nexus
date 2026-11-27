@@ -133,7 +133,9 @@ class _AddLinkSheetState extends ConsumerState<AddLinkSheet> {
         tags: tags,
       ));
     } else {
-      AnalyticsService.itemSaved(type: 'link', via: 'manual');
+      AnalyticsService.itemSaved(
+          type: 'link', via: 'manual', category: _category,
+          url: _urlCtrl.text.trim());
       err = await notifier.addLink(
         url: _urlCtrl.text.trim(), title: _titleCtrl.text.trim(),
         category: _category, thumbnailUrl: _fetchedThumb,

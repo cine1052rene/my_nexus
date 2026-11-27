@@ -136,7 +136,8 @@ class _HubScreenState extends ConsumerState<HubScreen> {
       return;
     }
 
-    AnalyticsService.itemSaved(type: 'link', via: 'share');
+    AnalyticsService.itemSaved(
+        type: 'link', via: 'share', category: category, url: url);
 
     // ② 저장 완료 즉시 알림
     messenger.hideCurrentSnackBar();

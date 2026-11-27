@@ -19,8 +19,34 @@ class AnalyticsService {
   }
 
   /// 저장: type = link | memo | capture, via = share | manual
-  static Future<void> itemSaved({required String type, required String via}) =>
-      _log('item_saved', {'type': type, 'via': via});
+  /// category = 저장 분류(youtube·instagram·…), format = short | video | post
+  /// (2026-11-27 추가 — 요약할 글이 있는 링크 비율을 재기 위함. URL은 보내지 않음)
+  static Future<void> itemSaved({
+    required String type,
+    required String via,
+    String? category,
+    String? url,
+  }) =>
+      _log('item_saved', {
+        'type': type,
+        'via': via,
+        'category': category ?? type,
+        if (url != null) 'format': linkFormat(url),
+      });
+
+  /// 링크 형태만 판별한다 — 짧은 영상 / 일반 영상 / 글·게시물
+  static String linkFormat(String url) {
+    final u = url.toLowerCase();
+    if (u.contains('/shorts/') ||
+        u.contains('/reel') ||
+        u.contains('tiktok.com')) {
+      return 'short';
+    }
+    if (u.contains('youtube.com/watch') || u.contains('youtu.be/')) {
+      return 'video';
+    }
+    return 'post';
+  }
 
   /// 항목 열기. fromSearch = 검색어가 있는 상태에서 열었는지 (= 다시 찾기 성공)
   static Future<void> itemOpened({
